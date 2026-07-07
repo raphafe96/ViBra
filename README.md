@@ -1,6 +1,6 @@
-# ViBra - Vibrational Structure Program
-
-A Fortran program for Vibrational Self-Consistent Field (VSCF) and Vibrational Configuration Interaction (VCI) calculations using ORCA output files.
+# ViBra
+A Program for Anharmonic Vibrational Spectroscopy with
+Efficient Selected and Symmetry-Adapted VCI
 
 ## Compilation
 
