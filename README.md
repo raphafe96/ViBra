@@ -1,11 +1,9 @@
-<div align="left">
-  <img src="assets/logo.png" alt="ViBra Logo" width="200" style="float: left; margin-right: 20px;"/>
-  <p style="margin-top: 20px;">
+<div style="display: flex; align-items: center; justify-content: flex-start;">
+  <img src="assets/logo.png" alt="ViBra Logo" width="200" style="margin-right: 20px;"/>
+  <p style="margin: 0;">
     The logo is inspired on the sunset at Morro Dois Irmãos, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks.
   </p>
-  <br clear="left"/>
 </div>
-ViBra is a program for anharmonic vibrational spectroscopy based on Vibrational Self-Consistent Field (VSCF), Vibrational Configuration Interaction (VCI), Selected VCI (S-VCI), and Symmetry-Adapted VCI (SA-VCI) methods.
 
 The computational engine is written in Fortran 90/95 and reads anharmonic vibrational data from an ORCA `.vpt2` output file. ViBra can calculate vibrational energies, infrared intensities, normal modes, VSCF modals, VCI wavefunctions, and spectra.
 
