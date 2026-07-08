@@ -31,7 +31,7 @@
     │   ├── symmetry.f90
     │
     ├── examples/
-    │   ├── examples.zip - ORCA .vpt2 files
+    │   ├── examples.zip - ORCA input/output files (first geometry minimization, then VPT2 calculation to save force constants in a vpt2.vpt2 file)
     │
     ├── GUI_and_precompiled_Windows/
     │   ├── GUI.zip
