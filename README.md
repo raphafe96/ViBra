@@ -1,10 +1,9 @@
 <table border="0">
   <tr>
     <td><img src="assets/logo.png" alt="ViBra Logo" width="300"/></td>
-    <td><em>The logo is inspired on the sunset at Morro Dois Irm&atilde;os, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks. 🌅🏔️</em></td>
+    <td><strong>Program for Anharmonic Vibrational Spectroscopy with Efficient Selected and Symmetry-Adapted VCI.</strong><br><br><em>The logo is inspired on the sunset at Morro Dois Irm&atilde;os, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks.</em></td>
   </tr>
 </table>
-The computational engine is written in Fortran 90/95 and reads anharmonic vibrational data from an ORCA `.vpt2` output file. ViBra can calculate vibrational energies, infrared intensities, normal modes, VSCF modals, VCI wavefunctions, and spectra.
 
 ## ✨ Main Features
 
@@ -47,7 +46,6 @@ The computational engine is written in Fortran 90/95 and reads anharmonic vibrat
     ├── GUI_and_precompiled_Windows/
     │   ├── ViBra.exe
     │   ├── GUI files
-    │   └── spectrum viewer files
     │
     ├── assets/
     │   └── logo.png
