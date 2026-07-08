@@ -1,7 +1,7 @@
 <table border="0">
   <tr>
     <td><img src="assets/logo.png" alt="ViBra Logo" width="300"/></td>
-    <td><strong>Program for Anharmonic Vibrational Spectroscopy with Efficient Selected and Symmetry-Adapted VCI.</strong><br><br><em>The logo is inspired on the sunset at Morro Dois Irm&atilde;os, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks.</em></td>
+    <td><strong>A Program for Anharmonic Vibrational Spectroscopy with Efficient Selected and Symmetry-Adapted VCI.</strong><br><br><em>The logo is inspired on the sunset at Morro Dois Irm&atilde;os, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks.</em></td>
   </tr>
 </table>
 
