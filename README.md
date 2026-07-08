@@ -1,10 +1,9 @@
-<div style="display: flex; align-items: center; justify-content: flex-start;">
-  <img src="assets/logo.png" alt="ViBra Logo" width="200" style="margin-right: 20px;"/>
-  <p style="margin: 0;">
-    The logo is inspired on the sunset at Morro Dois Irmãos, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks.
-  </p>
-</div>
-
+<table>
+  <tr>
+    <td><img src="assets/logo.png" alt="ViBra Logo" width="200"/></td>
+    <td>The logo is inspired on the sunset at Morro Dois Irmãos, a classic landscape postcard from Rio de Janeiro, resembling two overlapping Gaussian peaks.</td>
+  </tr>
+</table>
 The computational engine is written in Fortran 90/95 and reads anharmonic vibrational data from an ORCA `.vpt2` output file. ViBra can calculate vibrational energies, infrared intensities, normal modes, VSCF modals, VCI wavefunctions, and spectra.
 
 ## ✨ Main Features
