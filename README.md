@@ -1,10 +1,10 @@
-# ViBra
+# 🎵 ViBra
 
 ViBra is a program for anharmonic vibrational spectroscopy based on Vibrational Self-Consistent Field (VSCF), Vibrational Configuration Interaction (VCI), Selected VCI (S-VCI), and Symmetry-Adapted VCI (SA-VCI) methods.
 
 The computational engine is written in Fortran 90/95 and reads anharmonic vibrational data from an ORCA `.vpt2` output file. ViBra can calculate vibrational energies, infrared intensities, normal modes, VSCF modals, VCI wavefunctions, and spectra.
 
-## Main Features
+## ✨ Main Features
 
 * Harmonic oscillator, VSCF, VCI, Selected VCI, and Symmetry-Adapted VCI calculations
 * Support for cubic and quartic force fields obtained from ORCA VPT2 calculations
@@ -12,7 +12,6 @@ The computational engine is written in Fortran 90/95 and reads anharmonic vibrat
 * OpenMP parallelization
 * LAPACK/BLAS diagonalization routines
 * Symmetry treatment for the Abelian point groups:
-
   * `C1`
   * `Cs`
   * `Ci`
@@ -23,48 +22,44 @@ The computational engine is written in Fortran 90/95 and reads anharmonic vibrat
   * `D2h`
 * Output files compatible with the ViBra graphical spectrum viewer
 
-## Repository Structure
+## 📁 Repository Structure
 
-```text
-ViBra/
-│
-├── source/
-│   ├── main.f90
-│   ├── read_input.f90
-│   ├── read_orca.f90
-│   ├── get_combination.f90
-│   ├── integrals.f90
-│   ├── one_mode_operation.f90
-│   ├── vci.f90
-│   ├── jacobi.f90
-│   ├── symmetry.f90
-│   └── other Fortran source files
-│
-├── examples/
-│   ├── input_vscf.txt
-│   └── example ORCA .vpt2 files
-│
-├── GUI_and_precompiled_Windows/
-│   ├── ViBra.exe
-│   ├── GUI files
-│   └── spectrum viewer files
-│
-└── README.md
-```
+    ViBra/
+    │
+    ├── source/
+    │   ├── main.f90
+    │   ├── read_input.f90
+    │   ├── read_orca.f90
+    │   ├── get_combination.f90
+    │   ├── integrals.f90
+    │   ├── one_mode_operation.f90
+    │   ├── vci.f90
+    │   ├── jacobi.f90
+    │   ├── symmetry.f90
+    │   └── other Fortran source files
+    │
+    ├── examples/
+    │   ├── input_vscf.txt
+    │   └── example ORCA .vpt2 files
+    │
+    ├── GUI_and_precompiled_Windows/
+    │   ├── ViBra.exe
+    │   ├── GUI files
+    │   └── spectrum viewer files
+    │
+    └── README.md
 
-## Important Note About the GUI and Precompiled Executable
+## ⚠️ Important Note About the GUI and Precompiled Executable
 
 The graphical user interface and the precompiled Fortran executable are provided in a separate folder:
 
-```text
-GUI_and_precompiled_Windows/
-```
+    GUI_and_precompiled_Windows/
 
 These files are intended to work only on Windows.
 
 The precompiled executable was built for Windows, and the GUI was developed for use on Windows systems. Users working on Linux or macOS should compile the Fortran source code themselves and run the program from the command line.
 
-## Requirements for Compilation
+## 🔧 Requirements for Compilation
 
 To compile ViBra from source, the following software is required:
 
@@ -77,83 +72,67 @@ The code was developed and tested using Intel Fortran (`ifx`). Other compilers m
 
 Recommended compiler:
 
-```text
-Intel Fortran Compiler (ifx)
-```
+    Intel Fortran Compiler (ifx)
 
 Recommended numerical libraries:
 
-```text
-Intel Math Kernel Library (MKL)
-```
+    Intel Math Kernel Library (MKL)
 
-## Compilation on Windows Using Intel Fortran
+## 🖥️ Compilation on Windows Using Intel Fortran
 
 An example compilation command using Intel Fortran is:
 
-```bash
-ifx /O3 /Qopenmp /threads /Qmkl:parallel /Qm64 /heap-arrays /fpscomp:logicals *.f90 /exe:ViBra.exe
-```
+    ifx /O3 /Qopenmp /threads /Qmkl:parallel /Qm64 /heap-arrays /fpscomp:logicals *.f90 /exe:ViBra.exe
 
 This command enables optimization, OpenMP parallelization, threaded MKL routines, 64-bit compilation, and heap allocation for temporary arrays.
 
 Depending on your installation, you may need to compile the source files in a specific order. A typical order is:
 
-```text
-integrals.f90
-get_combination.f90
-jacobi.f90
-symmetry.f90
-one_mode_operation.f90
-read_input.f90
-read_orca.f90
-vci.f90
-main.f90
-```
+    integrals.f90
+    get_combination.f90
+    jacobi.f90
+    symmetry.f90
+    one_mode_operation.f90
+    read_input.f90
+    read_orca.f90
+    vci.f90
+    main.f90
 
 If additional modules are included in the source directory, compile them before the files that use them.
 
-## Compilation on Linux
+## 🐧 Compilation on Linux
 
 A possible compilation command using Intel Fortran on Linux is:
 
-```bash
-ifx -O3 -qopenmp -qmkl=parallel -heap-arrays *.f90 -o ViBra
-```
+    ifx -O3 -qopenmp -qmkl=parallel -heap-arrays *.f90 -o ViBra
 
 If using `gfortran`, LAPACK, BLAS, and OpenMP must be linked manually. For example:
 
-```bash
-gfortran -O3 -fopenmp *.f90 -llapack -lblas -o ViBra
-```
+    gfortran -O3 -fopenmp *.f90 -llapack -lblas -o ViBra
 
 The exact command may vary depending on the installed libraries and operating system.
 
-## Input File
+## 📝 Input File
 
 ViBra reads the input file:
 
-```text
-input_vscf.txt
-```
+    input_vscf.txt
 
 The input file uses keyword-based entries. A typical example is:
 
-```text
-NMODES 12
-NEXPAN 10
-FILECT molecule.vpt2
-CTEMOD orca_vpt2
-NQUANT 4
-NSTATE 20
-CVGSCF 6
-THREAD 8
-PGROUP D2h
-PROJCT 0.01
-MAXSCI 0
-```
+    NMODES 12
+    NEXPAN 10
+    FILECT molecule.vpt2
+    CTEMOD orca_vpt2
+    NQUANT 4
+    NSTATE 20
+    CVGSCF 6
+    THREAD 8
+    PGROUP D2h
+    PROJCT 0.01
+    MAXSCI 0
 
-## Input Keywords
+## 📋 Input Keywords
 
 | Keyword  |    Type | Description                                                                                                          |
 | -------- | ------: | -------------------------------------------------------------------------------------------------------------------- |
@@ -169,25 +148,21 @@ MAXSCI 0
 | `PROJCT` |    Real | Projection cutoff used during symmetry analysis.                                                                     |
 | `MAXSCI` | Integer | Number of configurations retained in Selected VCI. Use `0` for full VCI.                                             |
 
-## Running ViBra
+## ▶️ Running ViBra
 
 After compiling the code, place the executable in the same directory as `input_vscf.txt`, or provide the correct path to the input file and ORCA output file.
 
 On Windows:
 
-```bash
-ViBra.exe
-```
+    ViBra.exe
 
 On Linux or macOS:
 
-```bash
-./ViBra
-```
+    ./ViBra
 
 The program reads `input_vscf.txt` and starts the calculation.
 
-## ORCA Input Requirement
+## 📥 ORCA Input Requirement
 
 ViBra requires an ORCA `.vpt2` output file containing the anharmonic vibrational information, including:
 
@@ -200,7 +175,7 @@ ViBra requires an ORCA `.vpt2` output file containing the anharmonic vibrational
 
 The ORCA calculation must be configured to generate the required VPT2 output.
 
-## Output Files
+## 📤 Output Files
 
 ViBra produces the following main output files:
 
@@ -233,15 +208,13 @@ This file contains:
 
 This file can be used by the graphical viewer to visualize vibrational normal modes.
 
-## Calculation Modes
+## 🧮 Calculation Modes
 
 ### Harmonic Oscillator Calculation
 
 Set:
 
-```text
-NQUANT 0
-```
+    NQUANT 0
 
 This disables the VCI calculation and performs the harmonic and VSCF-related steps.
 
@@ -249,18 +222,14 @@ This disables the VCI calculation and performs the harmonic and VSCF-related ste
 
 Set:
 
-```text
-MAXSCI 0
-```
+    MAXSCI 0
 
 and choose a positive value for `NQUANT`.
 
 Example:
 
-```text
-NQUANT 4
-MAXSCI 0
-```
+    NQUANT 4
+    MAXSCI 0
 
 ### Selected VCI Calculation
 
@@ -268,10 +237,8 @@ Set `MAXSCI` to a positive value.
 
 Example:
 
-```text
-NQUANT 6
-MAXSCI 100
-```
+    NQUANT 6
+    MAXSCI 100
 
 A larger `MAXSCI` value retains more configurations and generally improves agreement with full VCI, at the cost of additional computational time.
 
@@ -281,15 +248,13 @@ Set the molecular point group using `PGROUP`.
 
 Example:
 
-```text
-PGROUP D2h
-```
+    PGROUP D2h
 
 Symmetry-adapted VCI reduces computational cost by block-diagonalizing the VCI Hamiltonian according to irreducible representations.
 
 The selected point group must be correct for the molecular geometry and normal modes. It is recommended to compare a low-quanta SA-VCI calculation with a full VCI calculation before using larger VCI spaces.
 
-## Performance Considerations
+## ⚡ Performance Considerations
 
 The size of the VCI space increases rapidly with the number of vibrational modes and the maximum number of quanta.
 
@@ -303,13 +268,11 @@ For large systems, consider using:
 
 Full VCI calculations may require substantial memory because the Hamiltonian matrix is stored as a dense symmetric matrix.
 
-## Graphical User Interface
+## 🖱️ Graphical User Interface
 
 The Windows GUI is available in the separate folder:
 
-```text
-GUI_and_precompiled_Windows/
-```
+    GUI_and_precompiled_Windows/
 
 The GUI can be used to:
 
@@ -322,15 +285,13 @@ The GUI can be used to:
 
 The GUI and precompiled executable are intended for Windows only.
 
-## Spectrum Viewer
+## 📊 Spectrum Viewer
 
 The Windows folder also includes a graphical spectrum viewer that can read:
 
-```text
-vscf.out
-intensities.txt
-normal_mode.txt
-```
+    vscf.out
+    intensities.txt
+    normal_mode.txt
 
 The viewer can be used to:
 
@@ -344,7 +305,7 @@ The viewer can be used to:
 * Animate normal modes in three dimensions
 * Export spectra as text files or PNG images
 
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ### The program cannot find the ORCA `.vpt2` file
 
@@ -362,14 +323,14 @@ Verify that the selected point group matches the molecular structure. Run a smal
 
 The precompiled executable is Windows-only. Compile the Fortran source code on the target operating system.
 
-## Citation
+## 📚 Citation
 
 If you use ViBra in scientific work, please cite the associated publication and documentation.
 
-## License
+## 📄 License
 
 Please add the appropriate license information for this project.
 
-## Contact
+## 📧 Contact
 
 For questions, bug reports, or contributions, please contact the project maintainers.
