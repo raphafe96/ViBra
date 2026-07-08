@@ -1,3 +1,7 @@
+<div align="center">
+<img src="assets/logo.png" alt="ViBra Logo" width="200"/>
+</div>
+
 # 🎵 ViBra
 
 ViBra is a program for anharmonic vibrational spectroscopy based on Vibrational Self-Consistent Field (VSCF), Vibrational Configuration Interaction (VCI), Selected VCI (S-VCI), and Symmetry-Adapted VCI (SA-VCI) methods.
@@ -47,7 +51,11 @@ The computational engine is written in Fortran 90/95 and reads anharmonic vibrat
     │   ├── GUI files
     │   └── spectrum viewer files
     │
-    └── README.md
+    ├── assets/
+    │   └── logo.png
+    │
+    ├── README.md
+    └── LICENSE
 
 ## ⚠️ Important Note About the GUI and Precompiled Executable
 
@@ -329,27 +337,13 @@ If you use ViBra in scientific work, please cite the associated publication and 
 
 ## 📄 License
 
-MIT License
+Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
 
 Copyright (c) 2026 Raphael F. Ligório and co-authors, CBPF (Centro Brasileiro de Pesquisas Físicas)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+You are free to use, share, and modify ViBra for non-commercial purposes, provided you give appropriate credit. Commercial use is not permitted without explicit permission.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Full license text: http://creativecommons.org/licenses/by-nc/4.0/
 
 ## 📧 Contact
 
