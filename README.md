@@ -12,15 +12,7 @@
 * Infrared intensities using first- and second-order dipole derivatives
 * OpenMP parallelization
 * LAPACK/BLAS diagonalization routines
-* Symmetry treatment for the Abelian point groups:
-  * `C1`
-  * `Cs`
-  * `Ci`
-  * `C2`
-  * `C2h`
-  * `C2v`
-  * `D2`
-  * `D2h`
+* Symmetry treatment for the Abelian point groups
 * Output files compatible with the ViBra graphical spectrum viewer
 
 ## 📁 Repository Structure
