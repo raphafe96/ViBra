@@ -34,7 +34,7 @@
     │   ├── examples.zip
     │
     ├── GUI_and_precompiled_Windows/
-    │   ├── GUI.zip
+    │   ├── Final_dist.zip
     │
     ├── assets/
     │   └── logo.png
