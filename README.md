@@ -52,6 +52,8 @@ These files are intended to work only on Windows.
 
 The precompiled executable was built for Windows, and the GUI was developed for use on Windows systems. Users working on Linux or macOS should compile the Fortran source code themselves and run the program from the command line.
 
+## All files should be placed in the same directory. Running the GUI (vscf_vci_gui.exe) will automatically copy the Fortran executable (vscf_vci.exe) and all dependencies into the user-selected input file directory, and erase them after execution.
+
 ## 🔧 Requirements for Compilation
 
 To compile ViBra from source, the following software is required:
