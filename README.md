@@ -29,15 +29,12 @@
     │   ├── vci.f90
     │   ├── jacobi.f90
     │   ├── symmetry.f90
-    │   └── other Fortran source files
     │
     ├── examples/
-    │   ├── input_vscf.txt
-    │   └── example ORCA .vpt2 files
+    │   ├── examples.zip - ORCA .vpt2 files
     │
     ├── GUI_and_precompiled_Windows/
-    │   ├── ViBra.exe
-    │   ├── GUI files
+    │   ├── GUI.zip
     │
     ├── assets/
     │   └── logo.png
