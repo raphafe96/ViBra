@@ -31,7 +31,7 @@
     │   ├── symmetry.f90
     │
     ├── examples/
-    │   ├── examples.zip - ORCA input/output files (first geometry minimization, then VPT2 calculation to save force constants in a vpt2.vpt2 file)
+    │   ├── examples.zip
     │
     ├── GUI_and_precompiled_Windows/
     │   ├── GUI.zip
@@ -53,6 +53,52 @@ These files are intended to work only on Windows.
 The precompiled executable was built for Windows, and the GUI was developed for use on Windows systems. Users working on Linux or macOS should compile the Fortran source code themselves and run the program from the command line.
 
 **All files should be placed in the same directory. Running the GUI (vscf_vci_gui.exe) will automatically copy the Fortran executable (vscf_vci.exe) and all dependencies into the user-selected input file directory, and erase them after execution.**
+
+## ⚠️ A Note About ORCA Files
+
+To generate the required `.vpt2` file for ViBra, you need to run two sequential ORCA calculations. Below are examples using **ORCA 6.1**.
+
+**1. Geometry Optimization**
+
+    ! Opt VeryTightSCF ExtremeSCF wB97X-D4 aug-cc-pvtz
+
+    %scf
+       MaxIter 300
+    end
+
+    %geom
+       MaxIter 300
+       Calc_Hess true
+       Recalc_Hess 10
+       TolE 1e-12
+       TolRMSG 1e-8
+       TolMaxG 1e-8
+       TolRMSD 1e-8
+       TolMaxD 1e-8
+    end
+
+    * xyz 0 1
+      [your geometry here]
+    *
+
+**2. VPT2 Calculation**
+
+    ! VeryTightSCF ExtremeSCF wB97X-D4 aug-cc-pvtz VPT2
+
+    %vpt2
+      VPT2 true
+      PrintLevel 2
+    end
+
+    * xyz 0 1
+      [your optimized geometry here]
+    *
+
+This will produce a `basename.vpt2` file containing harmonic frequencies, normal modes, cubic and quartic force constants, and first- and second-order dipole derivatives — all required by ViBra.
+
+**Note:** These calculations were performed and tested using **ORCA 6.1**. For more details, see:
+
+> Neese, F. *et al.* ORCA – An Ab Initio, DFT and Semiempirical SCF-MO Package, Version 6.1. Max-Planck-Institut für Kohlenforschung, Mülheim an der Ruhr, 2025. Available at: https://www.faccts.de/orca
 
 ## 🔧 Requirements for Compilation
 
