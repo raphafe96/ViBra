@@ -273,15 +273,16 @@ subroutine selected_vibrational_ci(Potential_3, Potential_4, N_modes, N_expansio
     final_index_3, count_index_3, n_unique_3, unique_modes_3, check3, &
     final_index_4, count_index_4, n_unique_4, unique_modes_4, check4, &
     cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-    quartic_for_mode, n_quartic_for_mode, n_quartic_max)
+    quartic_for_mode, n_quartic_for_mode, n_quartic_max, vec_combinations2, &
+    total_combinations2, mode_sci, reference_max)
 implicit none
 
 !---------------------------------------------------------------------------
 ! INPUT VARIABLES
 !---------------------------------------------------------------------------
-integer,  intent(in) :: N_modes, N_expansion, N_quanta, N_states, N_threads
-integer,  intent(in) :: total_combinations
-integer,  intent(in) :: vec_combinations(total_combinations, N_modes)
+integer,  intent(in) :: N_modes, N_expansion, N_quanta, N_threads, reference_max
+integer,  intent(in) :: total_combinations, total_combinations2
+integer,  intent(in) :: vec_combinations(total_combinations, N_modes), vec_combinations2(total_combinations2, N_modes)
 integer,  intent(in) :: total_3, total_4, n_cubic_max, n_quartic_max
 integer,  intent(in) :: final_index_3(total_3, 3), count_index_3(total_3, 3)
 integer,  intent(in) :: n_unique_3(total_3), unique_modes_3(total_3, 3)
@@ -293,7 +294,7 @@ integer,  intent(in) :: cubic_for_mode(n_cubic_max, N_modes)
 integer,  intent(in) :: n_cubic_for_mode(N_modes)
 integer,  intent(in) :: quartic_for_mode(n_quartic_max, N_modes)
 integer,  intent(in) :: n_quartic_for_mode(N_modes)
-integer,  intent(in) :: N_sel_per_state
+!integer,  intent(in) :: N_sel_per_state
 real*8,   intent(in) :: Potential_3(N_modes, N_modes, N_modes)
 real*8,   intent(in) :: Potential_4(N_modes, N_modes, N_modes, N_modes)
 real*8,   intent(in) :: HO_freq(N_modes)
@@ -303,11 +304,12 @@ real*8,   intent(in) :: dipole_derivatives(N_modes, 3)
 real*8,   intent(in) :: second_dipole_derivatives(N_modes, N_modes, 3)
 real*8,   intent(in) :: Potential_3_vec(total_3)
 real*8,   intent(in) :: Potential_4_vec(total_4)
+character (len=4), intent(in) :: mode_sci 
 
 !---------------------------------------------------------------------------
 ! SCALAR LOCALS
 !---------------------------------------------------------------------------
-integer :: i, j, k, ii, jj, kk, pp, m, n
+integer :: i, j, k, ii, jj, kk, pp, m, n, n_states_list, N_sel_per_state, check_list, N_states
 integer :: max_quanta
 integer :: mu, nu, p  
 integer :: mode_idx, Vc_check, n_diff
@@ -396,9 +398,17 @@ call cpu_time(start_time)
 
 write(*,'(A)') ' ============================================='
 write(*,'(A)') '        SELECTED VCI (SCI@VSCF)              '
-write(*,'(A)') '        CISD reference + EN-PT2 top-N select  '
+write(*,'(A)') '        Reference + EN-PT2 top-N select  '
 write(*,'(A,I8,A)') '        N_sel_per_state = ', N_sel_per_state, ' configs/state'
 write(*,'(A)') ' ============================================='
+
+
+check_list = 0
+if (mode_sci == 'list') then
+    check_list = 1
+    N_states = total_combinations2
+    !N_sel_per_state = 8
+end if
 
 !==========================================================================
 ! STEP 1: Precompute modal integrals
@@ -454,35 +464,79 @@ write(*,'(A,I6,A,I6)') ' Inverted index: max cubic/mode=', n_cubic_max, &
     ', max quartic/mode=', n_quartic_max
 
 !==========================================================================
-! STEP 3: Build CISD reference space
+! STEP 3: Build CI reference space
 !==========================================================================
-allocate(is_ref(total_combinations))
-allocate(is_selected(total_combinations))
-is_ref      = .false.
-is_selected = .false.
-n_ref       = 0
+if (check_list == 1) then
 
-do m = 1, total_combinations
-    if (sum(vec_combinations(m, :)) <= 2) then
-        is_ref(m)      = .true.
-        is_selected(m) = .true.
-        n_ref          = n_ref + 1
-    end if
-end do
+    allocate(is_ref(total_combinations2))
+    allocate(is_selected(total_combinations2))
+    is_ref      = .false.
+    is_selected = .false.
+    n_ref       = 0
+    open (11, file='list_states.txt')
 
-allocate(ref_list(n_ref))
-j = 0
-do m = 1, total_combinations
-    if (is_ref(m)) then
-        j = j + 1
-        ref_list(j) = m
-    end if
-end do
+        read(11, *) n_states_list
 
-write(*,'(A,I8,A,I8,A)') ' CISD reference: ', n_ref, &
-    ' configs out of ', total_combinations, ' total'
-write(101,'(A,I8,A,I8,A)') ' CISD reference: ', n_ref, &
-    ' configs out of ', total_combinations, ' total'
+    close(11)
+
+    do m = 1, total_combinations ! Total_combinations in this case is just the number of combinations from the list, for the reference CI state, combination2 is for the all combinations
+        do n = 1, n_states_list
+            if (all(vec_combinations(m, :) == vec_combinations(n, :))) then
+                is_ref(m)      = .true.
+                is_selected(m) = .true.
+                n_ref          = n_ref + 1
+            end if
+        end do
+    end do
+
+    allocate(ref_list(n_ref))
+    j = 0
+    do m = 1, total_combinations2
+        if (is_ref(m)) then
+            j = j + 1
+            ref_list(j) = m
+        end if
+    end do
+
+
+else 
+    allocate(is_ref(total_combinations))
+    allocate(is_selected(total_combinations))
+    is_ref      = .false.
+    is_selected = .false.
+    n_ref       = 0
+
+    do m = 1, total_combinations
+        if (sum(vec_combinations(m, :)) <= reference_max) then
+            is_ref(m)      = .true.
+            is_selected(m) = .true.
+            n_ref          = n_ref + 1
+        end if
+    end do
+
+    allocate(ref_list(n_ref))
+    j = 0
+    do m = 1, total_combinations
+        if (is_ref(m)) then
+            j = j + 1
+            ref_list(j) = m
+        end if
+    end do
+
+
+end if
+
+if (check_list == 1) then
+    write(*,'(A,I8,A,I8,A)') ' LIST reference: ', n_ref, &
+        ' configs out of ', total_combinations2, ' total'
+    write(101,'(A,I8,A,I8,A)') ' LIST reference: ', n_ref, &
+        ' configs out of ', total_combinations2, ' total'
+else
+    write(*,'(A,I8,A,I8,A)') ' CI   reference: ', n_ref, &
+        ' configs out of ', total_combinations, ' total'
+    write(101,'(A,I8,A,I8,A)') ' CI   reference: ', n_ref, &
+        ' configs out of ', total_combinations, ' total'
+end if 
 
 !==========================================================================
 ! STEP 4: Build and diagonalize CISD Hamiltonian
@@ -491,29 +545,56 @@ write(101,'(A,I8,A,I8,A)') ' CISD reference: ', n_ref, &
 !----------------------------------------------------------------------
 ! 4a: Build sel_list (= ref_list at this stage) and ext_list
 !----------------------------------------------------------------------
-n_sel = n_ref
-n_ext = total_combinations - n_sel
+
+if (check_list == 1) then
+    n_sel = n_ref
+    n_ext = total_combinations2 - n_sel
+else 
+    n_sel = n_ref
+    n_ext = total_combinations - n_sel
+end if
 
 allocate(sel_list(n_sel))
 allocate(ext_list(n_ext))
 
-j = 0
-do m = 1, total_combinations
-    if (is_selected(m)) then
-        j = j + 1
-        sel_list(j) = m
-    end if
-end do
-j = 0
-do m = 1, total_combinations
-    if (.not. is_selected(m)) then
-        j = j + 1
-        ext_list(j) = m
-    end if
-end do
+if (check_list == 1) then
+    j = 0
+    do m = 1, total_combinations2
+        if (is_selected(m)) then
+            j = j + 1
+            sel_list(j) = m
+        end if
+    end do
 
-write(*,'(A,I8,A,I8)') ' CISD active=', n_sel, ', external=', n_ext
-write(101,'(A,I8,A,I8)') ' CISD active=', n_sel, ', external=', n_ext
+    j = 0
+    do m = 1, total_combinations2
+        if (.not. is_selected(m)) then
+            j = j + 1
+            ext_list(j) = m
+        end if
+    end do
+
+else 
+    j = 0
+    do m = 1, total_combinations
+        if (is_selected(m)) then
+            j = j + 1
+            sel_list(j) = m
+        end if
+    end do
+
+    j = 0
+    do m = 1, total_combinations
+        if (.not. is_selected(m)) then
+            j = j + 1
+            ext_list(j) = m
+        end if
+    end do
+
+end if
+
+write(*,'(A,I8,A,I8)') ' Reference =', n_sel, ', external=', n_ext
+write(101,'(A,I8,A,I8)') ' Reference =', n_sel, ', external=', n_ext
 
 !----------------------------------------------------------------------
 ! 4b: Build sparse pair list for the CISD space
@@ -626,8 +707,8 @@ end if
 n_cisd_states = min(N_states, n_sel)
 
 ! Print CISD energies (first 10 states)
-write(*,'(A)') ' --- CISD energies (cm-1, relative to ZPE):'
-write(101,'(A)') ' --- CISD energies (cm-1, relative to ZPE):'
+write(*,'(A)') ' --- REF. energies (cm-1, relative to ZPE):'
+write(101,'(A)') ' --- REF. energies (cm-1, relative to ZPE):'
 do i = 1, min(10, n_cisd_states)
     write(*,'(I6,2F16.4)') i, &
         eigenvalues(i)/cm_to_hartree, &
@@ -641,65 +722,40 @@ end do
 ! STEP 5: EN-PT2 screening — select top N_sel_per_state per CISD state
 !==========================================================================
 
-write(*,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
-    ' external configs across ', n_cisd_states, ' CISD states'
-write(101,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
-    ' external configs across ', n_cisd_states, ' CISD states'
+if (check_list == 0) then
+    write(*,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
+        ' external configs across ', n_cisd_states, ' REF. states'
+    write(101,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
+        ' external configs across ', n_cisd_states, ' REF. states'
 
-! pt2_contrib(k, i_state) = |<alpha_k|H|Psi_I>|^2 / |E_I - H_aa|
-! for external config k and CISD state i_state
-allocate(pt2_contrib(n_ext, n_cisd_states))
-pt2_contrib = 0.d0
+    ! pt2_contrib(k, i_state) = |<alpha_k|H|Psi_I>|^2 / |E_I - H_aa|
+    ! for external config k and CISD state i_state
+    allocate(pt2_contrib(n_ext, n_cisd_states))
+    pt2_contrib = 0.d0
 
-allocate(coupling_vec(n_cisd_states))
+    allocate(coupling_vec(n_cisd_states))
 
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations, &
-!$OMP&        N_modes, max_quanta, modal_int, &
-!$OMP&        Potential_3, Potential_4, HO_freq, &
-!$OMP&        Potential_3_vec, Potential_4_vec, &
-!$OMP&        check3, check4, total_3, total_4, &
-!$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-!$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-!$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-!$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-!$OMP&        eigenvalues, eigenvectors, n_cisd_states, &
-!$OMP&        pt2_contrib) &
-!$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val, H_aa, &
-!$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff) &
-!$OMP& SCHEDULE(dynamic, 16)
-do k = 1, n_ext
-    m  = ext_list(k)
-    vm(1:N_modes) = vec_combinations(m, 1:N_modes)
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations, &
+    !$OMP&        N_modes, max_quanta, modal_int, &
+    !$OMP&        Potential_3, Potential_4, HO_freq, &
+    !$OMP&        Potential_3_vec, Potential_4_vec, &
+    !$OMP&        check3, check4, total_3, total_4, &
+    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+    !$OMP&        eigenvalues, eigenvectors, n_cisd_states, &
+    !$OMP&        pt2_contrib) &
+    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val, H_aa, &
+    !$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff) &
+    !$OMP& SCHEDULE(dynamic, 16)
+    do k = 1, n_ext
+        m  = ext_list(k)
+        vm(1:N_modes) = vec_combinations(m, 1:N_modes)
 
-    ! Compute diagonal element H_aa = <alpha|H|alpha>
-    call compute_H_element(m, m, vm, vm, N_modes, max_quanta, &
-        modal_int, Potential_3, Potential_4, HO_freq, &
-        Potential_3_vec, Potential_4_vec, &
-        check3, check4, total_3, total_4, &
-        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-        H_aa)
-
-    ! Compute coupling row: hrow(j) = <alpha|H|phi_j> for all CISD configs j
-    allocate(hrow(n_sel))
-    hrow = 0.d0
-    do j = 1, n_sel
-        n  = sel_list(j)
-        vn(1:N_modes) = vec_combinations(n, 1:N_modes)
-
-        n_diff = 0
-        do ii = 1, N_modes
-            if (vm(ii) /= vn(ii)) then
-                n_diff = n_diff + 1
-                if (n_diff > 4) exit
-            end if
-        end do
-        if (n_diff > 4) cycle
-
-        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+        ! Compute diagonal element H_aa = <alpha|H|alpha>
+        call compute_H_element(m, m, vm, vm, N_modes, max_quanta, &
             modal_int, Potential_3, Potential_4, HO_freq, &
             Potential_3_vec, Potential_4_vec, &
             check3, check4, total_3, total_4, &
@@ -707,35 +763,163 @@ do k = 1, n_ext
             final_index_4, count_index_4, n_unique_4, unique_modes_4, &
             cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
             quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-            H_val)
-        hrow(j) = H_val
-    end do
+            H_aa)
 
-    ! Compute coupling to each CISD eigenstate: <alpha|H|Psi_I> = sum_j c_jI * hrow(j)
-    coupling_vec(1:n_cisd_states) = 0.d0
-    do j = 1, n_sel
-        if (abs(hrow(j)) < 1.d-30) cycle
-        do i = 1, n_cisd_states
-            coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j) !h_row = Hmn = state inside the CISD and outisde, eigenvectoirs = Cn the CISD coefficient
+        ! Compute coupling row: hrow(j) = <alpha|H|phi_j> for all CISD configs j
+        allocate(hrow(n_sel))
+        hrow = 0.d0
+        do j = 1, n_sel
+            n  = sel_list(j)
+            vn(1:N_modes) = vec_combinations(n, 1:N_modes)
+
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vm(ii) /= vn(ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 4) exit
+                end if
+            end do
+            if (n_diff > 4) cycle
+
+            call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+                modal_int, Potential_3, Potential_4, HO_freq, &
+                Potential_3_vec, Potential_4_vec, &
+                check3, check4, total_3, total_4, &
+                final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+                final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+                cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+                quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+                H_val)
+            hrow(j) = H_val
         end do
+
+        ! Compute coupling to each CISD eigenstate: <alpha|H|Psi_I> = sum_j c_jI * hrow(j)
+        coupling_vec(1:n_cisd_states) = 0.d0
+        do j = 1, n_sel
+            if (abs(hrow(j)) < 1.d-30) cycle
+            do i = 1, n_cisd_states
+                coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j) !h_row = Hmn = state inside the CISD and outisde, eigenvectoirs = Cn the CISD coefficient
+            end do
+        end do
+
+        ! Compute EN-PT2 contribution for each CISD state
+        do i = 1, n_cisd_states
+            denom = eigenvalues(i) - H_aa
+            if (abs(denom) < 1.d-12) then
+                pt2_contrib(k, i) = 0.d0
+            else
+                pt2_contrib(k, i) = abs(coupling_vec(i) * coupling_vec(i) / denom)
+            end if
+        end do
+
+        deallocate(hrow)
+
     end do
+    !$OMP END PARALLEL DO
 
-    ! Compute EN-PT2 contribution for each CISD state
-    do i = 1, n_cisd_states
-        denom = eigenvalues(i) - H_aa
-        if (abs(denom) < 1.d-12) then
-            pt2_contrib(k, i) = 0.d0
-        else
-            pt2_contrib(k, i) = abs(coupling_vec(i) * coupling_vec(i) / denom)
-        end if
+    deallocate(coupling_vec)
+
+end if
+
+if (check_list == 1) then
+    write(*,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
+        ' external configs across ', n_cisd_states, ' LIST states'
+    write(101,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
+        ' external configs across ', n_cisd_states, ' LIST states'
+
+    ! pt2_contrib(k, i_state) = |<alpha_k|H|Psi_I>|^2 / |E_I - H_aa|
+    ! for external config k and CISD state i_state
+    allocate(pt2_contrib(n_ext, n_cisd_states))
+    pt2_contrib = 0.d0
+
+    allocate(coupling_vec(n_cisd_states))
+
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations2, &
+    !$OMP&        N_modes, max_quanta, modal_int, &
+    !$OMP&        Potential_3, Potential_4, HO_freq, &
+    !$OMP&        Potential_3_vec, Potential_4_vec, &
+    !$OMP&        check3, check4, total_3, total_4, &
+    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+    !$OMP&        eigenvalues, eigenvectors, n_cisd_states, &
+    !$OMP&        pt2_contrib) &
+    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val, H_aa, &
+    !$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff) &
+    !$OMP& SCHEDULE(dynamic, 16)
+    do k = 1, n_ext
+        m  = ext_list(k)
+        vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
+
+        ! Compute diagonal element H_aa = <alpha|H|alpha>
+        call compute_H_element(m, m, vm, vm, N_modes, max_quanta, &
+            modal_int, Potential_3, Potential_4, HO_freq, &
+            Potential_3_vec, Potential_4_vec, &
+            check3, check4, total_3, total_4, &
+            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+            H_aa)
+
+        ! Compute coupling row: hrow(j) = <alpha|H|phi_j> for all CISD configs j
+        allocate(hrow(n_sel))
+        hrow = 0.d0
+        do j = 1, n_sel
+            n  = sel_list(j)
+            vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
+
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vm(ii) /= vn(ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 4) exit
+                end if
+            end do
+            if (n_diff > 4) cycle
+
+            call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+                modal_int, Potential_3, Potential_4, HO_freq, &
+                Potential_3_vec, Potential_4_vec, &
+                check3, check4, total_3, total_4, &
+                final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+                final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+                cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+                quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+                H_val)
+            hrow(j) = H_val
+        end do
+
+        ! Compute coupling to each CISD eigenstate: <alpha|H|Psi_I> = sum_j c_jI * hrow(j)
+        coupling_vec(1:n_cisd_states) = 0.d0
+        do j = 1, n_sel
+            if (abs(hrow(j)) < 1.d-30) cycle
+            do i = 1, n_cisd_states
+                coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j) !h_row = Hmn = state inside the CISD and outisde, eigenvectoirs = Cn the CISD coefficient
+            end do
+        end do
+
+        ! Compute EN-PT2 contribution for each CISD state
+        do i = 1, n_cisd_states
+            denom = eigenvalues(i) - H_aa
+            if (abs(denom) < 1.d-12) then
+                pt2_contrib(k, i) = 0.d0
+            else
+                pt2_contrib(k, i) = abs(coupling_vec(i) * coupling_vec(i) / denom)
+            end if
+        end do
+
+        deallocate(hrow)
+
     end do
+    !$OMP END PARALLEL DO
 
-    deallocate(hrow)
+    deallocate(coupling_vec)
 
-end do
-!$OMP END PARALLEL DO
+end if
 
-deallocate(coupling_vec)
 
 !----------------------------------------------------------------------
 ! 5b: For each CISD state, find the top N_sel_per_state external configs
@@ -743,6 +927,8 @@ deallocate(coupling_vec)
 !----------------------------------------------------------------------
 ! top_n_indices(rank, state) = index into ext_list of the rank-th most important config
 ! top_n_values(rank, state)  = corresponding pt2 contribution value
+
+
 allocate(top_n_indices(N_sel_per_state, n_cisd_states))
 allocate(top_n_values(N_sel_per_state, n_cisd_states))
 top_n_indices = 0
@@ -823,311 +1009,670 @@ deallocate(sel_list, ext_list, H_sel, eigenvalues, eigenvectors)
 ! STEP 6: Build and diagonalize the final expanded Hamiltonian
 !==========================================================================
 
-! Build the final sel_list from the union of CISD + selected externals
-n_sel = count(is_selected)
+if (check_list == 0) then
+    ! Build the final sel_list from the union of CISD + selected externals
+    n_sel = count(is_selected)
 
-allocate(sel_list(n_sel))
-j = 0
-do m = 1, total_combinations
-    if (is_selected(m)) then
-        j = j + 1
-        sel_list(j) = m
-    end if
-end do
-
-write(*,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
-write(*,'(A,I8,A,I8,A)') '   (CISD: ', n_ref, ' + selected: ', n_new, ')'
-write(101,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
-write(101,'(A,I8,A,I8,A)') '   (CISD: ', n_ref, ' + selected: ', n_new, ')'
-
-! Build sparse pair list for the final active space
-n_sparse = 0
-do j = 1, n_sel
-    do i = j, n_sel
-        m = sel_list(j) ; n = sel_list(i)
-        n_diff = 0
-        do ii = 1, N_modes
-            if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
-                n_diff = n_diff + 1
-                if (n_diff > 4) exit
-            end if
-        end do
-        if (n_diff <= 4) n_sparse = n_sparse + 1
-    end do
-end do
-
-allocate(sparse_m(n_sparse), sparse_n(n_sparse))
-allocate(sparse_ndiff(n_sparse))
-allocate(sparse_diff_modes(n_sparse,4))
-sparse_diff_modes = 0
-
-idx = 0
-do j = 1, n_sel
-    do i = j, n_sel
-        m = sel_list(j) ; n = sel_list(i)
-        n_diff    = 0
-        diff_modes = 0
-        do ii = 1, N_modes
-            if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
-                n_diff = n_diff + 1
-                if (n_diff <= 4) diff_modes(n_diff) = ii
-                if (n_diff >  4) exit
-            end if
-        end do
-        if (n_diff <= 4) then
-            idx = idx + 1
-            sparse_m(idx)              = j
-            sparse_n(idx)              = i
-            sparse_ndiff(idx)          = n_diff
-            sparse_diff_modes(idx,1:4) = diff_modes(1:4)
+    allocate(sel_list(n_sel))
+    j = 0
+    do m = 1, total_combinations
+        if (is_selected(m)) then
+            j = j + 1
+            sel_list(j) = m
         end if
     end do
-end do
 
-! Fill final H_sel
-allocate(H_sel(n_sel, n_sel))
-H_sel = 0.d0
+    write(*,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
+    write(*,'(A,I8,A,I8,A)') '   (REF.: ', n_ref, ' + selected: ', n_new, ')'
+    write(101,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
+    write(101,'(A,I8,A,I8,A)') '   (REF.: ', n_ref, ' + selected: ', n_new, ')'
 
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
-!$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
-!$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
-!$OMP&        Potential_3_vec, Potential_4_vec, &
-!$OMP&        check3, check4, total_3, total_4, &
-!$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-!$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-!$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-!$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-!$OMP&        H_sel) &
-!$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
-!$OMP& SCHEDULE(dynamic, 64)
-do k = 1, n_sparse
-    i = sparse_m(k)
-    j = sparse_n(k)
-    m = sel_list(i)
-    n = sel_list(j)
-    vm(1:N_modes) = vec_combinations(m, 1:N_modes)
-    vn(1:N_modes) = vec_combinations(n, 1:N_modes)
+    ! Build sparse pair list for the final active space
+    n_sparse = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 4) exit
+                end if
+            end do
+            if (n_diff <= 4) n_sparse = n_sparse + 1
+        end do
+    end do
 
-    call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
-        modal_int, Potential_3, Potential_4, HO_freq, &
-        Potential_3_vec, Potential_4_vec, &
-        check3, check4, total_3, total_4, &
-        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-        H_val)
-    H_sel(i,j) = H_val
-    H_sel(j,i) = H_val
-end do
-!$OMP END PARALLEL DO
+    allocate(sparse_m(n_sparse), sparse_n(n_sparse))
+    allocate(sparse_ndiff(n_sparse))
+    allocate(sparse_diff_modes(n_sparse,4))
+    sparse_diff_modes = 0
 
-deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+    idx = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff    = 0
+            diff_modes = 0
+            do ii = 1, N_modes
+                if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff <= 4) diff_modes(n_diff) = ii
+                    if (n_diff >  4) exit
+                end if
+            end do
+            if (n_diff <= 4) then
+                idx = idx + 1
+                sparse_m(idx)              = j
+                sparse_n(idx)              = i
+                sparse_ndiff(idx)          = n_diff
+                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
+            end if
+        end do
+    end do
 
-! Diagonalize the final Hamiltonian
-allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
-eigenvalues  = 0.d0
-eigenvectors = 0.d0
+    ! Fill final H_sel
+    allocate(H_sel(n_sel, n_sel))
+    H_sel = 0.d0
 
-if (n_sel <= N_states) then
-    call dsyevd_A(H_sel, eigenvalues, eigenvectors)
-else
-    call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+    !$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
+    !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+    !$OMP&        Potential_3_vec, Potential_4_vec, &
+    !$OMP&        check3, check4, total_3, total_4, &
+    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+    !$OMP&        H_sel) &
+    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+    !$OMP& SCHEDULE(dynamic, 64)
+    do k = 1, n_sparse
+        i = sparse_m(k)
+        j = sparse_n(k)
+        m = sel_list(i)
+        n = sel_list(j)
+        vm(1:N_modes) = vec_combinations(m, 1:N_modes)
+        vn(1:N_modes) = vec_combinations(n, 1:N_modes)
+
+        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+            modal_int, Potential_3, Potential_4, HO_freq, &
+            Potential_3_vec, Potential_4_vec, &
+            check3, check4, total_3, total_4, &
+            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+            H_val)
+        H_sel(i,j) = H_val
+        H_sel(j,i) = H_val
+    end do
+    !$OMP END PARALLEL DO
+
+    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+
+    ! Diagonalize the final Hamiltonian
+    allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
+    eigenvalues  = 0.d0
+    eigenvectors = 0.d0
+
+    if (n_sel <= N_states) then
+        call dsyevd_A(H_sel, eigenvalues, eigenvectors)
+    else
+        call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+    end if
+
+    deallocate(H_sel)
+
 end if
 
-deallocate(H_sel)
+if (check_list == 1) then
+    ! Build the final sel_list from the union of CISD + selected externals
+    n_sel = count(is_selected)
 
+    allocate(sel_list(n_sel))
+    j = 0
+    do m = 1, total_combinations2
+        if (is_selected(m)) then
+            j = j + 1
+            sel_list(j) = m
+        end if
+    end do
+
+    write(*,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
+    write(*,'(A,I8,A,I8,A)') '   (LIST: ', n_ref, ' + selected: ', n_new, ')'
+    write(101,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
+    write(101,'(A,I8,A,I8,A)') '   (LIST: ', n_ref, ' + selected: ', n_new, ')'
+
+    ! Build sparse pair list for the final active space
+    n_sparse = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 4) exit
+                end if
+            end do
+            if (n_diff <= 4) n_sparse = n_sparse + 1
+        end do
+    end do
+
+    allocate(sparse_m(n_sparse), sparse_n(n_sparse))
+    allocate(sparse_ndiff(n_sparse))
+    allocate(sparse_diff_modes(n_sparse,4))
+    sparse_diff_modes = 0
+
+    idx = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff    = 0
+            diff_modes = 0
+            do ii = 1, N_modes
+                if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff <= 4) diff_modes(n_diff) = ii
+                    if (n_diff >  4) exit
+                end if
+            end do
+            if (n_diff <= 4) then
+                idx = idx + 1
+                sparse_m(idx)              = j
+                sparse_n(idx)              = i
+                sparse_ndiff(idx)          = n_diff
+                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
+            end if
+        end do
+    end do
+
+    ! Fill final H_sel
+    allocate(H_sel(n_sel, n_sel))
+    H_sel = 0.d0
+
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+    !$OMP&        n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
+    !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+    !$OMP&        Potential_3_vec, Potential_4_vec, &
+    !$OMP&        check3, check4, total_3, total_4, &
+    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+    !$OMP&        H_sel) &
+    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+    !$OMP& SCHEDULE(dynamic, 64)
+    do k = 1, n_sparse
+        i = sparse_m(k)
+        j = sparse_n(k)
+        m = sel_list(i)
+        n = sel_list(j)
+        vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
+        vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
+
+        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+            modal_int, Potential_3, Potential_4, HO_freq, &
+            Potential_3_vec, Potential_4_vec, &
+            check3, check4, total_3, total_4, &
+            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+            H_val)
+        H_sel(i,j) = H_val
+        H_sel(j,i) = H_val
+    end do
+    !$OMP END PARALLEL DO
+
+    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+
+    ! Diagonalize the final Hamiltonian
+    allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
+    eigenvalues  = 0.d0
+    eigenvectors = 0.d0
+
+    if (n_sel <= N_states) then
+        call dsyevd_A(H_sel, eigenvalues, eigenvectors)
+    else
+        call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+    end if
+
+    deallocate(H_sel)
+
+
+end if
 !==========================================================================
 ! STEP 7: Final output — mirror VCI format exactly
 !==========================================================================
-write(*,'(A)') ' ============================================='
-write(*,'(A)') '   FINAL VCI ENERGIES'
-write(*,'(A)') ' ============================================='
-write(*,'(A,I8)') ' Final active space size: ', n_sel
-write(101,'(A)') ' ============================================='
-write(101,'(A)') '   FINAL VCI ENERGIES'
-write(101,'(A)') ' ============================================='
-write(101,'(A,I8)') ' Final active space size: ', n_sel
 
-if (n_sel <= N_states) then
-    write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
-    write(*,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
-        '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
-    write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
-    write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
-    write(101,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
-        '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
-    write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+if(check_list == 0) then
 
-    do i = 1, min(N_states, n_sel)
-        values  = 0.d0
-        indices = 0
-        call top_three_components(eigenvectors(:,i), n_sel, values, indices)
-        if (i < 10) then
-            write(*,'(1F19.4, 1F22.4, 1A14, 3F12.6, 3I12)') &
+    write(*,'(A)') ' ============================================='
+    write(*,'(A)') '   FINAL VCI ENERGIES'
+    write(*,'(A)') ' ============================================='
+    write(*,'(A,I8)') ' Final active space size: ', n_sel
+    write(101,'(A)') ' ============================================='
+    write(101,'(A)') '   FINAL VCI ENERGIES'
+    write(101,'(A)') ' ============================================='
+    write(101,'(A,I8)') ' Final active space size: ', n_sel
+
+   ! write(*,*)
+   ! write(*,*) '>> Final List' 
+   ! do i = 1, n_sel
+   !     write(*,'(99999I5)') sel_list(i), vec_combinations(sel_list(i),:)
+   ! end do
+   ! write(*,*)
+
+    write(101,*)
+    write(101,*) '>> Final List' 
+    do i = 1, n_sel
+        write(101,'(99999I5)') sel_list(i), vec_combinations(sel_list(i),:)
+    end do
+    write(101,*)
+
+    if (n_sel <= N_states) then
+        write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(*,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
+            '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
+        write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(101,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
+            '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
+        write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+
+        do i = 1, min(N_states, n_sel)
+            values  = 0.d0
+            indices = 0
+            call top_three_components(eigenvectors(:,i), n_sel, values, indices)
+            if (i < 10) then
+                write(*,'(1F19.4, 1F22.4, 1A14, 3F12.6, 3I12)') &
+                    eigenvalues(i)/cm_to_hartree, &
+                    eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree, &
+                    '      ||      ', values, sel_list(indices(1)), sel_list(indices(2)), sel_list(indices(3))
+            end if
+            write(101,'(1F19.4, 1F22.4, 1A14, 3F12.6, 3I12)') &
                 eigenvalues(i)/cm_to_hartree, &
                 eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree, &
                 '      ||      ', values, sel_list(indices(1)), sel_list(indices(2)), sel_list(indices(3))
-        end if
-        write(101,'(1F19.4, 1F22.4, 1A14, 3F12.6, 3I12)') &
-            eigenvalues(i)/cm_to_hartree, &
-            eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree, &
-            '      ||      ', values, sel_list(indices(1)), sel_list(indices(2)), sel_list(indices(3))
-    end do
-    write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
-    write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        end do
+        write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
 
-else
-    write(*,'(1A)') '-----------------------------------------'
-    write(*,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
-    write(*,'(1A)') '-----------------------------------------'
-    write(101,'(1A)') '-----------------------------------------'
-    write(101,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
-    write(101,'(1A)') '-----------------------------------------'
+    else
+        write(*,'(1A)') '-----------------------------------------'
+        write(*,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
+        write(*,'(1A)') '-----------------------------------------'
+        write(101,'(1A)') '-----------------------------------------'
+        write(101,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
+        write(101,'(1A)') '-----------------------------------------'
 
-    do i = 1, min(N_states, n_sel)
-        values  = 0.d0
-        indices = 0
-        call top_three_components(eigenvectors(:,i), min(N_states,n_sel), values, indices)
-        if (i < 10) then
-            write(*,'(1F19.4, 1F22.4)') &
+        do i = 1, min(N_states, n_sel)
+            values  = 0.d0
+            indices = 0
+            call top_three_components(eigenvectors(:,i), min(N_states,n_sel), values, indices)
+            if (i < 10) then
+                write(*,'(1F19.4, 1F22.4)') &
+                    eigenvalues(i)/cm_to_hartree, &
+                    eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree
+            end if
+            write(101,'(1F19.4, 1F22.4)') &
                 eigenvalues(i)/cm_to_hartree, &
                 eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree
-        end if
-        write(101,'(1F19.4, 1F22.4)') &
-            eigenvalues(i)/cm_to_hartree, &
-            eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree
+        end do
+        write(*,'(1A)') '-----------------------------------------'
+        write(101,'(1A)') '-----------------------------------------'
+
+    end if
+
+end if
+
+if (check_list == 1) then 
+
+    write(*,'(A)') ' ============================================='
+    write(*,'(A)') '   FINAL VCI ENERGIES'
+    write(*,'(A)') ' ============================================='
+    write(*,'(A,I8)') ' Final active space size: ', n_sel
+    write(101,'(A)') ' ============================================='
+    write(101,'(A)') '   FINAL VCI ENERGIES'
+    write(101,'(A)') ' ============================================='
+    write(101,'(A,I8)') ' Final active space size: ', n_sel
+
+    !write(*,*)
+    !write(*,*) '>> Final List' 
+    !do i = 1, n_sel
+    !    write(*,'(99999I5)') sel_list(i), vec_combinations2(sel_list(i),:)
+    !end do
+    !write(*,*)
+
+    write(101,*)
+    write(101,*) '>> Final List' 
+    do i = 1, n_sel
+        write(101,'(99999I5)') sel_list(i), vec_combinations2(sel_list(i),:)
     end do
-    write(*,'(1A)') '-----------------------------------------'
-    write(101,'(1A)') '-----------------------------------------'
+    write(101,*)
+
+    if (n_sel <= N_states) then
+        write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(*,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
+            '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
+        write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(101,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
+            '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
+        write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+
+        do i = 1, min(N_states, n_sel)
+            values  = 0.d0
+            indices = 0
+            call top_three_components(eigenvectors(:,i), n_sel, values, indices)
+            if (i < 10) then
+                write(*,'(1F19.4, 1F22.4, 1A14, 3F12.6, 3I12)') &
+                    eigenvalues(i)/cm_to_hartree, &
+                    eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree, &
+                    '      ||      ', values, sel_list(indices(1)), sel_list(indices(2)), sel_list(indices(3))
+            end if
+            write(101,'(1F19.4, 1F22.4, 1A14, 3F12.6, 3I12)') &
+                eigenvalues(i)/cm_to_hartree, &
+                eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree, &
+                '      ||      ', values, sel_list(indices(1)), sel_list(indices(2)), sel_list(indices(3))
+        end do
+        write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+        write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
+
+    else
+        write(*,'(1A)') '-----------------------------------------'
+        write(*,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
+        write(*,'(1A)') '-----------------------------------------'
+        write(101,'(1A)') '-----------------------------------------'
+        write(101,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
+        write(101,'(1A)') '-----------------------------------------'
+
+        do i = 1, min(N_states, n_sel)
+            values  = 0.d0
+            indices = 0
+            call top_three_components(eigenvectors(:,i), min(N_states,n_sel), values, indices)
+            if (i < 10) then
+                write(*,'(1F19.4, 1F22.4)') &
+                    eigenvalues(i)/cm_to_hartree, &
+                    eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree
+            end if
+            write(101,'(1F19.4, 1F22.4)') &
+                eigenvalues(i)/cm_to_hartree, &
+                eigenvalues(i)/cm_to_hartree - eigenvalues(1)/cm_to_hartree
+        end do
+        write(*,'(1A)') '-----------------------------------------'
+        write(101,'(1A)') '-----------------------------------------'
+
+    end if
 
 end if
 
 !==========================================================================
 ! STEP 8: Transition dipoles for the final selected space
 !==========================================================================
-write(*,*) ' -Calculating SCI transition dipoles'
 
-allocate(dipole_sel(n_sel, n_sel, 3))
-dipole_sel = 0.d0
+if (check_list == 0) then
+    write(*,*) ' -Calculating SCI transition dipoles'
 
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP& SHARED(n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
-!$OMP&        modal_int, dipole_derivatives, second_dipole_derivatives, &
-!$OMP&        dipole_vec, final_index_dipole, dipole_sel) &
-!$OMP& PRIVATE(i, j, m, n, ii, jj, kk, pp, vm, vn, n_diff, &
-!$OMP&         dip_local, ovlp_loc, prefix_prod, suffix_prod_loc, &
-!$OMP&         prod_except_i, prod_all, step_prod_loc) &
-!$OMP& SCHEDULE(dynamic, 64)
-do i = 1, n_sel
-    do j = i, n_sel
-        m  = sel_list(i) ; n = sel_list(j)
-        vm(1:N_modes) = vec_combinations(m, 1:N_modes)
-        vn(1:N_modes) = vec_combinations(n, 1:N_modes)
+    allocate(dipole_sel(n_sel, n_sel, 3))
+    dipole_sel = 0.d0
 
-        n_diff = 0
-        do ii = 1, N_modes
-            if (vm(ii) /= vn(ii)) then
-                n_diff = n_diff + 1
-                if (n_diff > 2) exit
-            end if
-        end do
-        if (n_diff > 2) cycle
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
+    !$OMP&        modal_int, dipole_derivatives, second_dipole_derivatives, &
+    !$OMP&        dipole_vec, final_index_dipole, dipole_sel) &
+    !$OMP& PRIVATE(i, j, m, n, ii, jj, kk, pp, vm, vn, n_diff, &
+    !$OMP&         dip_local, ovlp_loc, prefix_prod, suffix_prod_loc, &
+    !$OMP&         prod_except_i, prod_all, step_prod_loc) &
+    !$OMP& SCHEDULE(dynamic, 64)
+    do i = 1, n_sel
+        do j = i, n_sel
+            m  = sel_list(i) ; n = sel_list(j)
+            vm(1:N_modes) = vec_combinations(m, 1:N_modes)
+            vn(1:N_modes) = vec_combinations(n, 1:N_modes)
 
-        do ii = 1, N_modes
-            ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
-        end do
-        prefix_prod(0) = 1.0d0
-        do ii = 1, N_modes
-            prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
-        end do
-        prod_all = prefix_prod(N_modes)
-        suffix_prod_loc(N_modes+1) = 1.0d0
-        do ii = N_modes, 1, -1
-            suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
-        end do
-        do ii = 1, N_modes
-            prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
-        end do
-
-        dip_local = 0.d0
-
-        ! --- One-mode dipole terms ---
-        if (n_diff <= 1) then
+            n_diff = 0
             do ii = 1, N_modes
-                if (abs(prod_except_i(ii)) < 1.d-30) cycle
-                dip_local(1:3) = dip_local(1:3) + ( &
-                    modal_int(ii, vm(ii), vn(ii), 1) &
-                      * dipole_derivatives(ii, 1:3) &
-                  + modal_int(ii, vm(ii), vn(ii), 2) &
-                      * second_dipole_derivatives(ii,ii,1:3) &
-                    ) * prod_except_i(ii)
-            end do
-        end if
-
-        ! --- Two-mode dipole terms (i /= j) ---
-        if (n_diff <= 2) then
-            do kk = 1, N_modes*(N_modes+1)/2
-                if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
-                if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
-                    abs(dipole_vec(kk,2)) < 1.d-30 .and. &
-                    abs(dipole_vec(kk,3)) < 1.d-30) cycle
-                ii = final_index_dipole(kk,1)
-                jj = final_index_dipole(kk,2)
-                if (abs(ovlp_loc(ii)) < 1.d-300 .or. &
-                    abs(ovlp_loc(jj)) < 1.d-300) then
-                    step_prod_loc = 1.0d0
-                    do pp = 1, N_modes
-                        if (pp /= ii .and. pp /= jj) &
-                            step_prod_loc = step_prod_loc * ovlp_loc(pp)
-                    end do
-                else
-                    step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
+                if (vm(ii) /= vn(ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 2) exit
                 end if
-                if (abs(step_prod_loc) < 1.d-30) cycle
-                step_prod_loc = step_prod_loc &
-                    * modal_int(ii, vm(ii), vn(ii), 1) &
-                    * modal_int(jj, vm(jj), vn(jj), 1)
-                dip_local(1:3) = dip_local(1:3) &
-                    + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
             end do
-        end if
+            if (n_diff > 2) cycle
 
-        dipole_sel(i,j,1:3) = dip_local(1:3)
-        dipole_sel(j,i,1:3) = dip_local(1:3)
+            do ii = 1, N_modes
+                ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
+            end do
+            prefix_prod(0) = 1.0d0
+            do ii = 1, N_modes
+                prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
+            end do
+            prod_all = prefix_prod(N_modes)
+            suffix_prod_loc(N_modes+1) = 1.0d0
+            do ii = N_modes, 1, -1
+                suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
+            end do
+            do ii = 1, N_modes
+                prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
+            end do
 
-    end do
-end do
-!$OMP END PARALLEL DO
+            dip_local = 0.d0
 
-! Count transitions below 4500 cm-1 above ZPE
-number_to_print_int = 0
-do i = 1, min(N_states, n_sel) - 1
-    if ((eigenvalues(i+1)-eigenvalues(1))/cm_to_hartree < 4500.d0) &
-        number_to_print_int = number_to_print_int + 1
-end do
-if (number_to_print_int >= n_sel) number_to_print_int = n_sel - 1
+            ! --- One-mode dipole terms ---
+            if (n_diff <= 1) then
+                do ii = 1, N_modes
+                    if (abs(prod_except_i(ii)) < 1.d-30) cycle
+                    dip_local(1:3) = dip_local(1:3) + ( &
+                        modal_int(ii, vm(ii), vn(ii), 1) &
+                        * dipole_derivatives(ii, 1:3) &
+                    + modal_int(ii, vm(ii), vn(ii), 2) &
+                        * second_dipole_derivatives(ii,ii,1:3) &
+                        ) * prod_except_i(ii)
+                end do
+            end if
 
-allocate(dipole_final(max(1,number_to_print_int), 3))
-allocate(intensity(max(1,number_to_print_int)))
-allocate(tmp_vec(n_sel))
-dipole_final = 0.d0
-intensity    = 0.d0
+            ! --- Two-mode dipole terms (i /= j) ---
+            if (n_diff <= 2) then
+                do kk = 1, N_modes*(N_modes+1)/2
+                    if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
+                    if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
+                        abs(dipole_vec(kk,2)) < 1.d-30 .and. &
+                        abs(dipole_vec(kk,3)) < 1.d-30) cycle
+                    ii = final_index_dipole(kk,1)
+                    jj = final_index_dipole(kk,2)
+                    if (abs(ovlp_loc(ii)) < 1.d-300 .or. &
+                        abs(ovlp_loc(jj)) < 1.d-300) then
+                        step_prod_loc = 1.0d0
+                        do pp = 1, N_modes
+                            if (pp /= ii .and. pp /= jj) &
+                                step_prod_loc = step_prod_loc * ovlp_loc(pp)
+                        end do
+                    else
+                        step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
+                    end if
+                    if (abs(step_prod_loc) < 1.d-30) cycle
+                    step_prod_loc = step_prod_loc &
+                        * modal_int(ii, vm(ii), vn(ii), 1) &
+                        * modal_int(jj, vm(jj), vn(jj), 1)
+                    dip_local(1:3) = dip_local(1:3) &
+                        + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
+                end do
+            end if
 
-do ii = 1, 3
-    call dgemv('N', n_sel, n_sel, 1.d0, dipole_sel(1,1,ii), n_sel, &
-               eigenvectors(1,1), 1, 0.d0, tmp_vec, 1)
-    !$OMP PARALLEL DO PRIVATE(i) SCHEDULE(static)
-    do i = 1, number_to_print_int
-        dipole_final(i,ii) = ddot(n_sel, eigenvectors(1,i+1), 1, tmp_vec, 1)
+            dipole_sel(i,j,1:3) = dip_local(1:3)
+            dipole_sel(j,i,1:3) = dip_local(1:3)
+
+        end do
     end do
     !$OMP END PARALLEL DO
-end do
 
-do i = 1, number_to_print_int
-    intensity(i) = sum(dipole_final(i,:)**2)
-end do
+    ! Count transitions below 4500 cm-1 above ZPE
+    number_to_print_int = 0
+    do i = 1, min(N_states, n_sel) - 1
+        if ((eigenvalues(i+1)-eigenvalues(1))/cm_to_hartree < 4500.d0) &
+            number_to_print_int = number_to_print_int + 1
+    end do
+    if (number_to_print_int >= n_sel) number_to_print_int = n_sel - 1
+
+    allocate(dipole_final(max(1,number_to_print_int), 3))
+    allocate(intensity(max(1,number_to_print_int)))
+    allocate(tmp_vec(n_sel))
+    dipole_final = 0.d0
+    intensity    = 0.d0
+
+    do ii = 1, 3
+        call dgemv('N', n_sel, n_sel, 1.d0, dipole_sel(1,1,ii), n_sel, &
+                eigenvectors(1,1), 1, 0.d0, tmp_vec, 1)
+        !$OMP PARALLEL DO PRIVATE(i) SCHEDULE(static)
+        do i = 1, number_to_print_int
+            dipole_final(i,ii) = ddot(n_sel, eigenvectors(1,i+1), 1, tmp_vec, 1)
+        end do
+        !$OMP END PARALLEL DO
+    end do
+
+    do i = 1, number_to_print_int
+        intensity(i) = sum(dipole_final(i,:)**2)
+    end do
+
+end if
+
+
+if (check_list == 1) then
+    write(*,*) ' -Calculating SCI transition dipoles'
+
+    allocate(dipole_sel(n_sel, n_sel, 3))
+    dipole_sel = 0.d0
+
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
+    !$OMP&        modal_int, dipole_derivatives, second_dipole_derivatives, &
+    !$OMP&        dipole_vec, final_index_dipole, dipole_sel) &
+    !$OMP& PRIVATE(i, j, m, n, ii, jj, kk, pp, vm, vn, n_diff, &
+    !$OMP&         dip_local, ovlp_loc, prefix_prod, suffix_prod_loc, &
+    !$OMP&         prod_except_i, prod_all, step_prod_loc) &
+    !$OMP& SCHEDULE(dynamic, 64)
+    do i = 1, n_sel
+        do j = i, n_sel
+            m  = sel_list(i) ; n = sel_list(j)
+            vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
+            vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
+
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vm(ii) /= vn(ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 2) exit
+                end if
+            end do
+            if (n_diff > 2) cycle
+
+            do ii = 1, N_modes
+                ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
+            end do
+            prefix_prod(0) = 1.0d0
+            do ii = 1, N_modes
+                prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
+            end do
+            prod_all = prefix_prod(N_modes)
+            suffix_prod_loc(N_modes+1) = 1.0d0
+            do ii = N_modes, 1, -1
+                suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
+            end do
+            do ii = 1, N_modes
+                prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
+            end do
+
+            dip_local = 0.d0
+
+            ! --- One-mode dipole terms ---
+            if (n_diff <= 1) then
+                do ii = 1, N_modes
+                    if (abs(prod_except_i(ii)) < 1.d-30) cycle
+                    dip_local(1:3) = dip_local(1:3) + ( &
+                        modal_int(ii, vm(ii), vn(ii), 1) &
+                        * dipole_derivatives(ii, 1:3) &
+                    + modal_int(ii, vm(ii), vn(ii), 2) &
+                        * second_dipole_derivatives(ii,ii,1:3) &
+                        ) * prod_except_i(ii)
+                end do
+            end if
+
+            ! --- Two-mode dipole terms (i /= j) ---
+            if (n_diff <= 2) then
+                do kk = 1, N_modes*(N_modes+1)/2
+                    if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
+                    if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
+                        abs(dipole_vec(kk,2)) < 1.d-30 .and. &
+                        abs(dipole_vec(kk,3)) < 1.d-30) cycle
+                    ii = final_index_dipole(kk,1)
+                    jj = final_index_dipole(kk,2)
+                    if (abs(ovlp_loc(ii)) < 1.d-300 .or. &
+                        abs(ovlp_loc(jj)) < 1.d-300) then
+                        step_prod_loc = 1.0d0
+                        do pp = 1, N_modes
+                            if (pp /= ii .and. pp /= jj) &
+                                step_prod_loc = step_prod_loc * ovlp_loc(pp)
+                        end do
+                    else
+                        step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
+                    end if
+                    if (abs(step_prod_loc) < 1.d-30) cycle
+                    step_prod_loc = step_prod_loc &
+                        * modal_int(ii, vm(ii), vn(ii), 1) &
+                        * modal_int(jj, vm(jj), vn(jj), 1)
+                    dip_local(1:3) = dip_local(1:3) &
+                        + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
+                end do
+            end if
+
+            dipole_sel(i,j,1:3) = dip_local(1:3)
+            dipole_sel(j,i,1:3) = dip_local(1:3)
+
+        end do
+    end do
+    !$OMP END PARALLEL DO
+
+    ! Count transitions below 4500 cm-1 above ZPE
+    number_to_print_int = 0
+    do i = 1, min(N_states, n_sel) - 1
+        if ((eigenvalues(i+1)-eigenvalues(1))/cm_to_hartree < 4500.d0) &
+            number_to_print_int = number_to_print_int + 1
+    end do
+    if (number_to_print_int >= n_sel) number_to_print_int = n_sel - 1
+
+    allocate(dipole_final(max(1,number_to_print_int), 3))
+    allocate(intensity(max(1,number_to_print_int)))
+    allocate(tmp_vec(n_sel))
+    dipole_final = 0.d0
+    intensity    = 0.d0
+
+    do ii = 1, 3
+        call dgemv('N', n_sel, n_sel, 1.d0, dipole_sel(1,1,ii), n_sel, &
+                eigenvectors(1,1), 1, 0.d0, tmp_vec, 1)
+        !$OMP PARALLEL DO PRIVATE(i) SCHEDULE(static)
+        do i = 1, number_to_print_int
+            dipole_final(i,ii) = ddot(n_sel, eigenvectors(1,i+1), 1, tmp_vec, 1)
+        end do
+        !$OMP END PARALLEL DO
+    end do
+
+    do i = 1, number_to_print_int
+        intensity(i) = sum(dipole_final(i,:)**2)
+    end do
+
+end if
+
+
+
+
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FINAL
 
 write(200,*) 'VCI'
 write(200,*) number_to_print_int

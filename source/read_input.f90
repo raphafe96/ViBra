@@ -1,11 +1,12 @@
 module read_input_file
   implicit none
-  
+
   contains
 
   subroutine read_inp(input_file, N_modes, N_expansion, constants_file, &
                       constants_mode, N_quanta, N_states, conv_scf,     &
-                      N_threads, point_group, proj_cutoff, max_iter_sci)
+                      N_threads, point_group, proj_cutoff, max_iter_sci, &
+                      sci_mode, i_ref)
     implicit none
     character(len=*), intent(in)  :: input_file
     integer,          intent(out) :: N_modes, N_expansion, N_quanta
@@ -15,11 +16,14 @@ module read_input_file
     character(len=*), intent(out) :: constants_file
     character(len=*), intent(out) :: constants_mode
     character(len=*), intent(out) :: point_group
-
+    character(len=4), intent(out) :: sci_mode
+    integer,          intent(out) :: i_ref
+    character(len=1)  :: quanta_max_reference_sci
     integer           :: ios, unit
     integer           :: io_mode,    io_expan,   io_ctefile, io_ctmode
     integer           :: io_quanta,  io_nstates, io_conv,    io_threads
     integer           :: io_pg,      io_proj,    io_maxiter
+    integer           :: io_scimode, io_quantaref
     character(len=256):: line, keyword
     logical           :: valid
 
@@ -35,12 +39,16 @@ module read_input_file
     constants_file = ""
     constants_mode = ""
     point_group    = ""
+    sci_mode       = ""
+    quanta_max_reference_sci = ""
+    i_ref          = -99999
 
     !--- Sentinel values for io_* flags (mark as "not found") ---
     io_mode    = -1 ;  io_expan   = -1 ;  io_ctefile = -1
     io_ctmode  = -1 ;  io_quanta  = -1 ;  io_nstates = -1
     io_conv    = -1 ;  io_threads = -1 ;  io_pg      = -1
     io_proj    = -1 ;  io_maxiter = -1
+    io_scimode = -1 ;  io_quantaref = -1
 
     valid = .true.
 
@@ -125,11 +133,27 @@ module read_input_file
           read(line,*,iostat=io_proj) keyword, proj_cutoff
           write(*,'(A30,F12.6)') ' Projection cutoff (Ang): ', proj_cutoff
 
-        ! Maximum number of iterations for Selected CI
+        ! Maximum number of iterations for Selected CI, optionally followed
+        ! by the SCI mode (auto/list) and, if mode is 'auto', a 1-char
+        ! lowercase reference excitation level (s, d, t, or q).
         ! e.g.: MAXSCI 200
+        !       MAXSCI 200 auto d
+        !       MAXSCI 200 list
         case('MAXSCI')
           read(line,*,iostat=io_maxiter) keyword, max_iter_sci
           write(*,'(A30,I9)') ' Max iter Selected CI: ', max_iter_sci
+
+          read(line,*,iostat=io_scimode) keyword, max_iter_sci, sci_mode
+          if (io_scimode == 0) then
+            write(*,'(A30,A)') ' SCI mode: ', trim(sci_mode)
+          end if
+
+          read(line,*,iostat=io_quantaref) keyword, max_iter_sci, sci_mode, &
+                                            quanta_max_reference_sci
+          if (io_quantaref == 0) then
+            write(*,'(A30,A)') ' Quanta max reference SCI: ', &
+                               quanta_max_reference_sci
+          end if
 
         !--- unknown ------------------------------------------------------------
         case default
@@ -262,6 +286,83 @@ module read_input_file
       io_maxiter   = 0
     else
       write(*,'(A,I6)') ' MAXSCI     validation : PASSED  => ', max_iter_sci
+    end if
+
+    !--- SCI mode (auto/list) and quanta reference ---
+    ! Always try to read/validate sci_mode if present, but only enforce
+    ! strict rules when SCI is actually active (max_iter_sci > 0).
+    if (io_scimode == 0) then
+      ! Mode was provided on the MAXSCI line.
+      select case(trim(sci_mode))
+        case('auto','list')
+          ! Valid.
+          write(*,'(A,A)') ' SCIMODE    validation : PASSED  => ', &
+                           trim(sci_mode)
+        case default
+          if (max_iter_sci > 0) then
+            write(*,'(A)') ' ERROR: SCIMODE must be auto or list (lowercase).'
+            write(*,'(A,A)') '        Got: ', trim(sci_mode)
+            valid = .false.
+          else
+            write(*,'(A)') ' WARNING: Invalid SCIMODE - defaulting to auto.'
+            sci_mode = 'auto'
+          end if
+      end select
+    else
+      ! Mode was not given.
+      if (max_iter_sci > 0) then
+        write(*,'(A)') ' ERROR: SCIMODE not specified. Must be auto or list.'
+        valid = .false.
+      else
+        sci_mode = 'auto'
+        write(*,'(A)') ' SCIMODE    not found  : defaulting to auto'
+      end if
+    end if
+
+    if (max_iter_sci > 0) then
+      ! SCI is active – process quanta reference if mode is 'auto'.
+      if (trim(sci_mode) == 'auto') then
+        if (io_quantaref /= 0) then
+          write(*,'(A)') ' SCIQREF    not found  : defaulting to d'
+          quanta_max_reference_sci = 'd'
+        else
+          write(*,'(A,A)') ' SCIQREF    validation : PASSED  => ', &
+                           quanta_max_reference_sci
+        end if
+
+        ! Convert reference letter to excitation level.
+        select case(trim(quanta_max_reference_sci))
+          case('s'); i_ref = 1
+          case('d'); i_ref = 2
+          case('t'); i_ref = 3
+          case('q'); i_ref = 4
+          case default
+            write(*,'(A)') '----------------------------------------'
+            write(*,'(A)') ' ERROR: SCIQREF must be one of: s, d, t, q'
+            write(*,'(A)') '        (lowercase only)'
+            write(*,'(A,A)') '        Got: ', quanta_max_reference_sci
+            write(*,'(A)') '----------------------------------------'
+            stop
+        end select
+
+        if (N_quanta < i_ref + 1) then
+          write(*,'(A)') '----------------------------------------'
+          write(*,'(A)') ' ERROR: NQUANT is too small for the requested'
+          write(*,'(A)') '        Selected CI reference excitation level'
+          write(*,'(A,A,A,I3)') '        SCIQREF = ', &
+                                trim(quanta_max_reference_sci), &
+                                '  requires NQUANT >= ', i_ref + 1
+          write(*,'(A,I3)') '        Current NQUANT = ', N_quanta
+          write(*,'(A)') '        Please increase NQUANT in the input file.'
+          write(*,'(A)') '----------------------------------------'
+          stop
+        end if
+      else   ! sci_mode == 'list'
+        i_ref = 2
+      end if
+    else
+      ! SCI not used; i_ref is irrelevant.
+      i_ref = 2
     end if
 
     !--- Final result ---

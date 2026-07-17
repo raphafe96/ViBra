@@ -15,10 +15,11 @@ program main_vscf
   ! Scalar integers
   !===========================================================================
   integer :: N_expansion, N_modes, i, j, k, l, mu, nu, working_mode, p
-  integer :: total_combinations, N_quanta, N_states, m, n, contar, test
+  integer :: total_combinations, N_quanta, N_states, m, n, contar, test, total_combinations2
   integer :: state_number
   integer :: conv_scf, N_threads, calculate_sci, max_iter_sci        
   integer :: use_symmetry, warning
+  integer :: quanta_max_reference_sci
 
   !===========================================================================
   ! Mode irrep array
@@ -29,7 +30,7 @@ program main_vscf
   ! Combination / state arrays
   !===========================================================================
   integer, allocatable :: mode_excite(:)
-  integer, allocatable :: combination_vec(:,:)
+  integer, allocatable :: combination_vec(:,:),combination_vec2(:,:)
 
   !===========================================================================
   ! VSCF arrays
@@ -70,7 +71,8 @@ program main_vscf
   real*8  :: proj_cutoff                                              
 
   character(len=200) :: input_file, constants_file, constants_mode
-  character(len=10)  :: point_group_input                            
+  character(len=10)  :: point_group_input 
+  character(len=4) :: sci_mode                           
   integer(8) :: t_start, t_end, count_rate, count_max
   real(8)    :: elapsed_time
 
@@ -111,12 +113,13 @@ program main_vscf
   !===========================================================================
   input_file = 'input_vscf.txt'
   test = 0 !this will compare the results with implementation from CRYSTAL for H2O found on their webpage (tutorials) https://tutorials.crystalsolutions.eu/tutorial.html?td=anharmonicity&tf=anharm!
+  sci_mode = 'auto'
 
   if (test == 0) then
     call read_inp(input_file, N_modes, N_expansion, constants_file,   &
                   constants_mode, N_quanta, N_states, conv_scf,       &
                   N_threads, point_group_input, proj_cutoff,           &
-                  max_iter_sci)                                        
+                  max_iter_sci, sci_mode, quanta_max_reference_sci)                                        
   else
     N_modes         = 3
     N_expansion     = 10
@@ -489,8 +492,11 @@ program main_vscf
     !--- Generate configurations ---
     j = 0
     total_combinations = 0
+    total_combinations2 = 0
 
-    if (max_iter_sci /= 12345678) then
+    !if (max_iter_sci == 0 .and. sci_mode == 'auto') sci_mode = 'auto'
+
+    if (sci_mode .eq. 'auto') then
       if (N_quanta >= N_expansion) N_quanta = N_expansion - 1
 
       do i = 0, N_quanta
@@ -516,9 +522,35 @@ program main_vscf
       write(101,'(A,I8)') ' States generated: ', total_combinations
       write(*,*)
       write(*,'(A,I8)')   ' States generated: ', total_combinations
+
     end if
 
-    if (max_iter_sci == 12345678) then
+    if (sci_mode .eq. 'list') then
+      if (N_quanta >= N_expansion) N_quanta = N_expansion - 1
+
+      do i = 0, N_quanta
+        call count_combinations(N_modes, i, j)
+        total_combinations2 = total_combinations2 + j
+      end do
+
+      if (N_states > total_combinations2 .or. N_states < 1) &
+          N_states = total_combinations2
+
+      allocate(combination_vec2(total_combinations2, N_modes))
+      combination_vec2 = 0
+      state_number    = 0
+      j               = 0
+
+      do i = 0, N_quanta
+        state_number = state_number + j
+        call generate_combinations(N_modes, i, combination_vec2, &
+                                  total_combinations2, j, state_number)
+      end do
+
+      write(101,*)
+      write(101,'(A,I8)') ' States generated: ', total_combinations2
+      write(*,*)
+      write(*,'(A,I8)')   ' States generated: ', total_combinations2
 
       open(199, file = 'list_states.txt') 
 
@@ -536,15 +568,20 @@ program main_vscf
         write(101, '(100000I8)') i, combination_vec(i, 1:N_modes)
       end do
 
+      close(199)
+
+      write(*,*) 
+      write(*,*) '>>> MAX. QUANTA PER STATE: ', maxval(sum(combination_vec(:, 1:N_modes), dim=2))
+      write(*,*) 
+
+      if(maxval(sum(combination_vec(:, 1:N_modes), dim=2)) .gt. N_quanta) then
+
+        write(*,*) 'ERROR, min. value for  NQUANT: ', maxval(sum(combination_vec(:, 1:N_modes), dim=2)), ' FOUND: ', N_quanta
+        stop
+
+      end if
+
     end if
-
-
-    close(199)
-
-
-    !write(*,'(A)') '========================================'
-    !write(*,'(A)') ' START VCI:'
-    !write(*,'(A)') '========================================'
 
     second_dipole_derivatives = second_dipole_derivatives / 2.d0
 
@@ -555,7 +592,8 @@ program main_vscf
     !    (proj_cutoff is used inside init_symmetry, not here directly.)
     calculate_sci = 0
 
-    if (max_iter_sci > 0 .and. point_group_name == 'C1'  .and. max_iter_sci /= 12345678 ) calculate_sci = 1
+    if (max_iter_sci > 0 .and. point_group_name == 'C1') calculate_sci = 1
+    if (max_iter_sci == 0 .and. sci_mode == 'list') calculate_sci = 1
 
     !=========================================================================
     ! Dispatch
@@ -596,7 +634,8 @@ program main_vscf
           final_index_3, count_index_3, n_unique_3, unique_modes_3, check3, &
           final_index_4, count_index_4, n_unique_4, unique_modes_4, check4, &
           cubic_for_mode, n_cubic_for_mode, n_cubic_max,               &
-          quartic_for_mode, n_quartic_for_mode, n_quartic_max)
+          quartic_for_mode, n_quartic_for_mode, n_quartic_max,         &
+          combination_vec2, total_combinations2, sci_mode, quanta_max_reference_sci)
 
     else
 
