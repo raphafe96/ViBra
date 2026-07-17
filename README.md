@@ -1,3 +1,9 @@
+> **Citation**: If you use ViBra in your research, please cite:  
+> *R. F. Ligório et al., "ViBra: A Program for Anharmonic Vibrational Spectroscopy with Efficient Selected and Symmetry-Adapted VCI," CBPF, 2026.*  
+> **[Add citation placeholder here]**  
+>  
+> **Manual**: [📖 Read Manual (English)](manual.pdf) | [📖 Ler Manual (Português)](manual_pt.pdf)
+
 <table border="0">
   <tr>
     <td><img src="assets/logo.png" alt="ViBra Logo" width="300"/></td>
