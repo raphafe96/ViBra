@@ -600,94 +600,192 @@ write(101,'(A,I8,A,I8)') ' Reference =', n_sel, ', external=', n_ext
 ! 4b: Build sparse pair list for the CISD space
 !----------------------------------------------------------------------
 
-! --- Count pass ---
-n_sparse = 0
-do j = 1, n_sel
-    do i = j, n_sel
-        m = sel_list(j) ; n = sel_list(i)
-        n_diff = 0
-        do ii = 1, N_modes
-            if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
-                n_diff = n_diff + 1
-                if (n_diff > 4) exit
+if(check_list == 1) then 
+    ! --- Count pass ---
+    n_sparse = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 4) exit
+                end if
+            end do
+            if (n_diff <= 4) n_sparse = n_sparse + 1
+        end do
+    end do
+
+    allocate(sparse_m(n_sparse), sparse_n(n_sparse))
+    allocate(sparse_ndiff(n_sparse))
+    allocate(sparse_diff_modes(n_sparse,4))
+    sparse_diff_modes = 0
+
+    ! --- Fill pass ---
+    idx = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff    = 0
+            diff_modes = 0
+            do ii = 1, N_modes
+                if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff <= 4) diff_modes(n_diff) = ii
+                    if (n_diff >  4) exit
+                end if
+            end do
+            if (n_diff <= 4) then
+                idx = idx + 1
+                sparse_m(idx)          = j
+                sparse_n(idx)          = i
+                sparse_ndiff(idx)      = n_diff
+                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
             end if
         end do
-        if (n_diff <= 4) n_sparse = n_sparse + 1
     end do
-end do
 
-allocate(sparse_m(n_sparse), sparse_n(n_sparse))
-allocate(sparse_ndiff(n_sparse))
-allocate(sparse_diff_modes(n_sparse,4))
-sparse_diff_modes = 0
+    !----------------------------------------------------------------------
+    ! 4c: Fill CISD H_sel
+    !----------------------------------------------------------------------
+    allocate(H_sel(n_sel, n_sel))
+    H_sel = 0.d0
 
-! --- Fill pass ---
-idx = 0
-do j = 1, n_sel
-    do i = j, n_sel
-        m = sel_list(j) ; n = sel_list(i)
-        n_diff    = 0
-        diff_modes = 0
-        do ii = 1, N_modes
-            if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
-                n_diff = n_diff + 1
-                if (n_diff <= 4) diff_modes(n_diff) = ii
-                if (n_diff >  4) exit
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+    !$OMP&        n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
+    !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+    !$OMP&        Potential_3_vec, Potential_4_vec, &
+    !$OMP&        check3, check4, total_3, total_4, &
+    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+    !$OMP&        H_sel) &
+    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+    !$OMP& SCHEDULE(dynamic, 64)
+    do k = 1, n_sparse
+        i = sparse_m(k)
+        j = sparse_n(k)
+        m = sel_list(i)
+        n = sel_list(j)
+        vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
+        vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
+
+        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+            modal_int, Potential_3, Potential_4, HO_freq, &
+            Potential_3_vec, Potential_4_vec, &
+            check3, check4, total_3, total_4, &
+            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+            H_val)
+
+        H_sel(i,j) = H_val
+        H_sel(j,i) = H_val
+    end do
+    !$OMP END PARALLEL DO
+
+    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+end if
+
+if (check_list == 0) then 
+    !----------------------------------------------------------------------
+    ! 4b: Build sparse pair list for the CISD space
+    !----------------------------------------------------------------------
+
+    ! --- Count pass ---
+    n_sparse = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff = 0
+            do ii = 1, N_modes
+                if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff > 4) exit
+                end if
+            end do
+            if (n_diff <= 4) n_sparse = n_sparse + 1
+        end do
+    end do
+
+    allocate(sparse_m(n_sparse), sparse_n(n_sparse))
+    allocate(sparse_ndiff(n_sparse))
+    allocate(sparse_diff_modes(n_sparse,4))
+    sparse_diff_modes = 0
+
+    ! --- Fill pass ---
+    idx = 0
+    do j = 1, n_sel
+        do i = j, n_sel
+            m = sel_list(j) ; n = sel_list(i)
+            n_diff    = 0
+            diff_modes = 0
+            do ii = 1, N_modes
+                if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
+                    n_diff = n_diff + 1
+                    if (n_diff <= 4) diff_modes(n_diff) = ii
+                    if (n_diff >  4) exit
+                end if
+            end do
+            if (n_diff <= 4) then
+                idx = idx + 1
+                sparse_m(idx)          = j
+                sparse_n(idx)          = i
+                sparse_ndiff(idx)      = n_diff
+                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
             end if
         end do
-        if (n_diff <= 4) then
-            idx = idx + 1
-            sparse_m(idx)          = j
-            sparse_n(idx)          = i
-            sparse_ndiff(idx)      = n_diff
-            sparse_diff_modes(idx,1:4) = diff_modes(1:4)
-        end if
     end do
-end do
 
-!----------------------------------------------------------------------
-! 4c: Fill CISD H_sel
-!----------------------------------------------------------------------
-allocate(H_sel(n_sel, n_sel))
-H_sel = 0.d0
+    !----------------------------------------------------------------------
+    ! 4c: Fill CISD H_sel
+    !----------------------------------------------------------------------
+    allocate(H_sel(n_sel, n_sel))
+    H_sel = 0.d0
 
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
-!$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
-!$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
-!$OMP&        Potential_3_vec, Potential_4_vec, &
-!$OMP&        check3, check4, total_3, total_4, &
-!$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-!$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-!$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-!$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-!$OMP&        H_sel) &
-!$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
-!$OMP& SCHEDULE(dynamic, 64)
-do k = 1, n_sparse
-    i = sparse_m(k)
-    j = sparse_n(k)
-    m = sel_list(i)
-    n = sel_list(j)
-    vm(1:N_modes) = vec_combinations(m, 1:N_modes)
-    vn(1:N_modes) = vec_combinations(n, 1:N_modes)
+    !$OMP PARALLEL DO DEFAULT(NONE) &
+    !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+    !$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
+    !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+    !$OMP&        Potential_3_vec, Potential_4_vec, &
+    !$OMP&        check3, check4, total_3, total_4, &
+    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+    !$OMP&        H_sel) &
+    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+    !$OMP& SCHEDULE(dynamic, 64)
+    do k = 1, n_sparse
+        i = sparse_m(k)
+        j = sparse_n(k)
+        m = sel_list(i)
+        n = sel_list(j)
+        vm(1:N_modes) = vec_combinations(m, 1:N_modes)
+        vn(1:N_modes) = vec_combinations(n, 1:N_modes)
 
-    call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
-        modal_int, Potential_3, Potential_4, HO_freq, &
-        Potential_3_vec, Potential_4_vec, &
-        check3, check4, total_3, total_4, &
-        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-        H_val)
+        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+            modal_int, Potential_3, Potential_4, HO_freq, &
+            Potential_3_vec, Potential_4_vec, &
+            check3, check4, total_3, total_4, &
+            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+            H_val)
 
-    H_sel(i,j) = H_val
-    H_sel(j,i) = H_val
-end do
-!$OMP END PARALLEL DO
+        H_sel(i,j) = H_val
+        H_sel(j,i) = H_val
+    end do
+    !$OMP END PARALLEL DO
 
-deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+
+end if
 
 !----------------------------------------------------------------------
 ! 4d: Diagonalize CISD H_sel
