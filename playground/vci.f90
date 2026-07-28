@@ -704,11 +704,11 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   ! Print eigenvalues and CI decomposition
   if (use_davidson .and. N_threads == 1) write(*,'(1A,1F18.4)') ' H(1,1) = ', H_sparse(1)/cm_to_hartree !this necessarely not produce the H(1,1) at H_sparse(1) due threading. Only in single thread.
   
-  if (use_davidson .and. N_threads == 1) then
-    do i = 1, n_sparse_dav
-        if(sparse_m_dav(i) >= sparse_n_dav(i) .and. sparse_m_dav(i) .lt. 20) write(*,'(2I4, 1F18.2)') sparse_n_dav(i), sparse_m_dav(i), H_sparse(i)/cm_to_hartree
-    end do
-  end if
+!  if (use_davidson .and. N_threads == 1) then
+!    do i = 1, n_sparse_dav
+!        if(sparse_m_dav(i) >= sparse_n_dav(i) .and. sparse_m_dav(i) .lt. 20) write(*,'(2I4, 1F18.2)') sparse_n_dav(i), sparse_m_dav(i), H_sparse(i)/cm_to_hartree
+!    end do
+!  end if
 
   if (use_davidson) then
      write(*,'(1A,I4)') ' >>>>> Using Davidson eigensolver. Roots requested: ', Nfirst_davidson
