@@ -507,4 +507,86 @@ contains
         
     end subroutine apply_degeneracy_factors
 
+
+    !=============================================================================!
+! Subroutine: classify_quartic_terms                                        !
+!                                                                             !
+! Classifies every nonzero quartic force-constant term by how many DISTINCT !
+! mode indices it touches (n_unique_4), and reports how many fall into each !
+! class (1/2/3/4 distinct modes). A term with n_unique_4 == 4 is a genuine  !
+! quartic (Phi_ijkl, all indices different) -- the ONLY case that requires  !
+! n_diff <= 4 in the sparse-pair-list cutoff. Everything with n_unique_4 <=3!
+! is "semi-quartic" and only ever needs n_diff <= 3.                        !
+!                                                                             !
+!=============================================================================!
+subroutine classify_quartic_terms(total_4, final_index_4, n_unique_4, &
+    check4, Potential_4_vec, is_semiquartic)
+    implicit none
+
+    integer, intent(in)  :: total_4
+    integer, intent(in)  :: final_index_4(total_4, 4)
+    integer, intent(in)  :: n_unique_4(total_4)
+    integer, intent(in)  :: check4(total_4)
+    real*8,  intent(in)  :: Potential_4_vec(total_4)
+    logical, intent(out) :: is_semiquartic
+
+    integer :: jj, count_1, count_2, count_3, count_4, n_active
+    real*8, parameter :: report_tol = 1.0d-16
+
+    count_1 = 0
+    count_2 = 0
+    count_3 = 0
+    count_4 = 0
+    n_active = 0
+
+    write(*,'(A)') ' '
+    write(*,'(A)') ' >>> QUARTIC FORCE FIELD CLASSIFICATION (by distinct mode count)'
+
+    do jj = 1, total_4
+        if (check4(jj) == 0) cycle
+        if (abs(Potential_4_vec(jj)) < report_tol) cycle
+        n_active = n_active + 1
+
+        select case (n_unique_4(jj))
+        case (1)
+            count_1 = count_1 + 1
+        case (2)
+            count_2 = count_2 + 1
+        case (3)
+            count_3 = count_3 + 1
+        case (4)
+            count_4 = count_4 + 1
+            ! Print every genuine quartic term found -- there should be none
+            ! for a semi-quartic-only force field, so this list should be empty.
+            write(*,'(A,I8,A,4I5,A,ES14.4)') '  TRUE QUARTIC  term #', jj, &
+                '  modes (i,j,k,l) = ', final_index_4(jj,1:4), &
+                '  Phi = ', Potential_4_vec(jj)
+        end select
+    end do
+
+    write(*,'(A)') ' ------------------------------------------------------------'
+    write(*,'(A,I8)') '  Active (nonzero) quartic terms        : ', n_active
+    write(*,'(A,I8)') '    n_unique = 1 (iiii)                 : ', count_1
+    write(*,'(A,I8)') '    n_unique = 2 (iijj / iiik)          : ', count_2
+    write(*,'(A,I8)') '    n_unique = 3 (iijk)                 : ', count_3
+    write(*,'(A,I8)') '    n_unique = 4 (ijkl, TRUE quartic)   : ', count_4
+    write(*,'(A)') ' ------------------------------------------------------------'
+
+    is_semiquartic = (count_4 == 0)
+
+    if (is_semiquartic) then
+        write(*,'(A)') '  >>> No true 4-distinct-mode quartic terms found.'
+        write(*,'(A)') '  >>> Safe to build the sparse pair list with n_diff <= 3.'
+    else
+        write(*,'(A,I6,A)') '  >>> WARNING: ', count_4, &
+            ' true quartic term(s) found (n_unique_4 == 4).'
+        write(*,'(A)') '  >>> This is NOT a semi-quartic-only force field.'
+        write(*,'(A)') '  >>> The sparse pair list MUST use n_diff <= 4, or these'
+        write(*,'(A)') '  >>> couplings will be silently dropped.'
+    end if
+    write(*,'(A)') ' ============================================================'
+    write(*,'(A)') ' '
+
+    end subroutine classify_quartic_terms
+
 end module combination
