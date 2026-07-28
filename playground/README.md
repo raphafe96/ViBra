@@ -1,6 +1,6 @@
 # 🔬 Welcome to the ViBra Playground!
 
-Welcome, adventurous spectroscopist! This is the ViBra playground, a sandbox for new, experimental, and evolving features that push the boundaries of vibrational configuration interaction. Here you will find bleeding-edge capabilities that are still being refined and tested before they graduate to the main stable release. Think of this as a backstage pass to the future of ViBra. Explore, experiment, and help shape the next generation of anharmonic vibrational spectroscopy tools. Just remember: things here may change, break, or evolve, that is the nature of a playground!
+This is the ViBra playground, a sandbox for new, experimental, and evolving features that push the boundaries of vibrational configuration interaction. Explore, experiment, and help shape our software. Just remember: things here may change, break, or evolve, that is the nature of a playground!
 
 ## ✨ What's New in This Version
 
@@ -8,7 +8,7 @@ The playground currently introduces the following new and experimental features:
 
 - **VCI@HO**: Possibility to run VCI using a harmonic oscillator basis for all VCI routines, including Full VCI, Selected VCI (S-VCI), and Symmetry-Adapted VCI (SA-VCI). This provides an alternative to the standard VCI@VSCF approach and can serve as a useful reference.
 - **On-the-fly diagonalization**: Option to run an iterative Davidson diagonalizer when a full VCI calculation is requested, avoiding the memory bottleneck of storing the full dense Hamiltonian matrix.
-- **Built-in water molecule test**: An option to automatically run a water molecule test case using VCI@VSCF. This allows you to compare results with Crystal23 output and verify that everything is running correctly.
+- **Built-in water molecule test**: An option to automatically run a water molecule test case using VCI@VSCF. This allows you to compare results with Crystal23 output and verify that everything is running correctly. (you must explicitly set the RUNSCF to 1).
 - **Extended intensity output**: For full VCI calculations, frequencies are now also saved in km/mol alongside the transition dipoles in a new file called `dipoles_intensity_vci.txt`, providing richer data for spectral analysis.
 
 ## 🧪 How to Use the New Features
@@ -49,4 +49,4 @@ To explore a large VCI space using a harmonic basis and the memory-efficient Dav
 
 Then configure your standard `input_vscf.txt` with a large NQUANT and MAXSCI set to 0 for a full VCI. Run ViBra and the calculation will proceed in the VCI@HO framework, diagonalizing the Hamiltonian iteratively and saving significant memory.
 
-Happy exploring, and may your vibrations always be anharmonic!
+Happy exploring, and may your vibrations always be harmonic!
