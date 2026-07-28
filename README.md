@@ -289,7 +289,7 @@ Set `MAXSCI` to a positive value.
 Example:
 
     NQUANT 6
-    MAXSCI 100
+    MAXSCI 100 auto d
 
 A larger `MAXSCI` value retains more configurations and generally improves agreement with full VCI, at the cost of additional computational time.
 
