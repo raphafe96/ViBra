@@ -6,9 +6,8 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
   </tr>
 </table>
 
-> **Citation**: If you use ViBra in your research, please cite:  
-> *R. F. Ligório et al., "ViBra: A Program for Anharmonic Vibrational Spectroscopy with Efficient Selected and Symmetry-Adapted VCI," CBPF, 2026.*  
-> **[Add citation placeholder here]**  
+> **Citation**: If you use ViBra in your research, please refer to:  
+> **(https://doi.org/10.48550/arXiv.2607.22850)**  
 >  
 > **Theory and Manual**: [📖 Read (English)](manual.pdf) | [📖 Ler (Português)](manual_pt.pdf)
 ## ✨ Main Features
@@ -35,6 +34,9 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
     │   ├── vci.f90
     │   ├── jacobi.f90
     │   ├── symmetry.f90
+    │
+    ├── playground/
+    │   ├── (new versions of the code with new features)
     │
     ├── examples/
     │   ├── examples.zip
@@ -125,6 +127,8 @@ Recommended numerical libraries:
 
     Intel Math Kernel Library (MKL)
 
+> **Note for larger molecules**: When compiling with `ifx`, it may be necessary to use the `-i8` flag to enable 64-bit integers and to set a fixed stack size for the binary. This can help avoid memory addressing issues for very large VCI spaces. Consult your compiler documentation for the appropriate flags.
+
 ## 🖥️ Compilation on Windows Using Intel Fortran
 
 An example compilation command using Intel Fortran is:
@@ -181,19 +185,19 @@ The input file uses keyword-based entries. A typical example is:
 
 ## 📋 Input Keywords
 
-| Keyword  |    Type | Description                                                                                                          |
-| -------- | ------: | -------------------------------------------------------------------------------------------------------------------- |
-| `NMODES` | Integer | Number of vibrational modes.                                                                                         |
-| `NEXPAN` | Integer | Number of harmonic oscillator basis functions used for each mode.                                                    |
-| `FILECT` |  String | Path to the ORCA `.vpt2` output file.                                                                                |
-| `CTEMOD` |  String | Input format. Use `orca_vpt2`.                                                                                       |
-| `NQUANT` | Integer | Maximum total number of vibrational quanta included in the VCI space. Values less than or equal to zero disable VCI. |
-| `NSTATE` | Integer | Number of eigenstates to calculate. Values less than or equal to zero calculate all states.                          |
-| `CVGSCF` | Integer | VSCF convergence exponent. For example, `6` corresponds to a threshold of `10^-6 cm^-1`.                             |
-| `THREAD` | Integer | Number of OpenMP threads.                                                                                            |
-| `PGROUP` |  String | Molecular point group. Supported groups are `C1`, `Cs`, `Ci`, `C2`, `C2h`, `C2v`, `D2`, and `D2h`.                   |
-| `PROJCT` |    Real | Projection cutoff used during symmetry analysis.                                                                     |
-| `MAXSCI` | Integer | Number of configurations retained in Selected VCI. Use `0` for full VCI.                                             |
+| Keyword  |    Type | Description                                                                                                                                                                                                                                                                                            |
+| -------- | ------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NMODES` | Integer | Number of vibrational modes (M).                                                                                                                                                                                                                                                               |
+| `NEXPAN` | Integer | HO basis size per mode (Nexp).                                                                                                                                                                                                                                                                  |
+| `FILECT` |  String | Path to ORCA `.vpt2` file.                                                                                                                                                                                                                                                                      |
+| `CTEMOD` |  String | Format (orca_vpt2).                                                                                                                                                                                                                                                                              |
+| `NQUANT` | Integer | Maximum total quanta (Nq); ≤ 0 disables VCI.                                                                                                                                                                                                                                                    |
+| `NSTATE` | Integer | Number of eigenstates (≤ 0 = all).                                                                                                                                                                                                                                                               |
+| `CVGSCF` | Integer | VSCF convergence exponent (10−C cm−1).                                                                                                                                                                                                                                                          |
+| `THREAD` | Integer | Number of OpenMP threads.                                                                                                                                                                                                                                                                       |
+| `PGROUP` |  String | Point group (C1, Cs, Ci, C2, C2h, C2v, D2, D2h).                                                                                                                                                                                                                                                       |
+| `PROJCT` |    Real | Projection cutoff for symmetry detection (Å).                                                                                                                                                                                                                                                   |
+| `MAXSCI` | Integer | Nsel for S-VCI. Default: 100.<br><br>**Usage:** `MAXSCI [N] [mode] [ref]`<br>N > 0, mode = auto: iterative selection with CI reference (ref = s, d, t, q).<br>N > 0, mode = list: iterative selection with list reference, no ref needed.<br>N = 0: full VCI (no S-VCI), no mode and no ref needed.<br>N = 0, mode = list: full VCI using user-provided state list, no ref needed. |
 
 ## ▶️ Running ViBra
 
