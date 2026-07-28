@@ -19,14 +19,14 @@ To activate the playground features, simply place a file named `extra_input.txt`
 
 | Keyword  |    Type | Description                                                                                                         |
 | -------- | ------: | ------------------------------------------------------------------------------------------------------------------- |
-| `RUNSCF` | Integer | Set to 1 to run as VCI@VSCF, or 0 to run as VCI@HO.                                                                |
-| `RUNH2O` | Integer | Set to 1 to run a test mode for the water molecule, or 0 for normal runs.                                           |
-| `RUNDAV` | Integer | Set to 1 to use the iterative Davidson diagonalizer, or 0 to use standard dense matrix diagonalization.             |
-| `DAVCUT` |    Real | Cutoff threshold for Hamiltonian matrix elements in the Davidson solver. Default: 0.00000005.                       |
-| `DAVCVG` |    Real | Convergence threshold for the iterative diagonalizer. Default: 0.0005.                                              |
-| `DAVMAX` | Integer | Maximum number of iterations for the Davidson solver. Default: 200.                                                 |
-| `DAVSTA` | Integer | Number of lowest eigenvalues to compute. Default: 25.                                                               |
-| `RUNENR` | Integer | Set to 1 to estimate the number of states needed for a given frequency threshold, 2 to also print the state energies, or 0 to do nothing. |
+| `RUNSCF` | Integer | Set to 1 to run as VCI@VSCF, or 0 to run as VCI@HO. Default: 1.                                                               |
+| `RUNH2O` | Integer | Set to 1 to run a test mode for the water molecule, or 0 for normal runs. Default: 0.                                          |
+| `RUNDAV` | Integer | Set to 1 to use the iterative Davidson diagonalizer, or 0 to use standard dense matrix diagonalization. Default: 0         |
+| `DAVCUT` |    Real | Cutoff threshold for Hamiltonian matrix elements in the Davidson solver. Default: 0.0000005.                       |
+| `DAVCVG` |    Real | Convergence threshold for the iterative diagonalizer. Default: 0.0001.                                              |
+| `DAVMAX` | Integer | Maximum number of iterations for the Davidson solver. Default: 25.                                                 |
+| `DAVSTA` | Integer | Number of lowest eigenvalues to compute. Default: 10.                                                               |
+| `RUNENR` | Integer | Set to 1 to estimate the number of states needed for a given frequency threshold (based on HO energies), 2 to also print the state energies (HO), or 0 to do nothing. Default: 0|
 | `MAXFRQ` |    Real | Maximum frequency in cm⁻¹ for which intensities will be calculated. Default: 4500.0.                                |
 | `DAVBUF` | Integer | Buffer size for the subspace dimension in the Davidson diagonalizer. There is a minimum limit internally set to DAVSTA times 20. Default: 4000. |
 
