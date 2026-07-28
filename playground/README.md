@@ -26,7 +26,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `DAVCVG` |    Real | Convergence threshold for the iterative diagonalizer. Default: 0.0001.                                              |
 | `DAVMAX` | Integer | Maximum number of iterations for the Davidson solver. Default: 25.                                                 |
 | `DAVSTA` | Integer | Number of lowest eigenvalues to compute. Default: 10.                                                               |
-| `RUNENR` | Integer | Set to 1 to estimate the number of states needed for a given frequency threshold (based on HO energies), 2 to also print the state energies (HO), or 0 to do nothing. Default: 0|
+| `RUNENR` | Integer | Set to 1 to estimate the number of states needed for a given frequency threshold (based on HO energies), 2 to also print the state energies (HO), or 0 to do nothing. Default: 0. |
 | `MAXFRQ` |    Real | Maximum frequency in cm⁻¹ for which intensities will be calculated. Default: 4500.0.                                |
 | `DAVBUF` | Integer | Buffer size for the subspace dimension in the Davidson diagonalizer. There is a minimum limit internally set to DAVSTA times 20. Default: 4000. |
 
