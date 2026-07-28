@@ -20,6 +20,8 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
 * Symmetry treatment for the Abelian point groups
 * Output files compatible with the ViBra graphical spectrum viewer
 
+> **🔬 Playground**: New and experimental features are being developed in the [`playground`](playground/) folder. Check there to see what is new or different from the stable version.
+
 ## 📁 Repository Structure
 
     ViBra/
@@ -289,7 +291,7 @@ Set `MAXSCI` to a positive value.
 Example:
 
     NQUANT 6
-    MAXSCI 100 auto d
+    MAXSCI 100
 
 A larger `MAXSCI` value retains more configurations and generally improves agreement with full VCI, at the cost of additional computational time.
 
