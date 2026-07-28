@@ -40,7 +40,7 @@ New and experimental features are being developed in the [`playground`](playgrou
     │   ├── symmetry.f90
     │
     ├── playground/
-    │   ├── (new versions of the code with new features)
+    │   ├── new versions of the code with new features
     │
     ├── examples/
     │   ├── examples.zip
