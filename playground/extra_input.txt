@@ -1,0 +1,10 @@
+RUNSCF 1 			!1 Run as VCI@VSCF, 0 turns to VC@HO
+RUNH2O 0			!1 Run a test mode for water, 0 normal runs
+RUNDAV 1 			!1 Run iterative diagonalizer, 0 use dense matrix
+DAVCUT 0.00000005		!Cutoff for H Elements
+DAVCVG 0.0005			!iterative diagonalizer convergence
+DAVMAX 200			!Max cicles for solver
+DAVSTA 25 			!N first eigenvalues
+RUNENR 0 			!.gt. 1 Estimates the number of states Need for a given frequency threshold, 2 estimates and print the states Energies, 0 do nothing
+MAXFRQ 4500.	       		!Maximum frequency intensity will be calculated
+DAVBUF 4000                     ! The buffer for the space size in Davidson diago. There is a minimun limit set to DAVSTA*20.
