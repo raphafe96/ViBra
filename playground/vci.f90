@@ -89,7 +89,7 @@ to_sparse_cut = 4
 do ii = 1, N_modes
     ovlp(ii) = modal_int(ii, vm(ii), vn(ii), 0)
 end do
-
+ovlp = ovlp + 1.d-16 !If we call the vscf, fine, this will not be 0. However, if this is exactly 0 like for some couplings when calling the VCI@HO, there is a problem when dividing by 0.
 prefix_prod(0) = 1.0d0
 do ii = 1, N_modes
     prefix_prod(ii) = prefix_prod(ii-1) * ovlp(ii)
@@ -120,7 +120,7 @@ end do
 ! Includes: harmonic h_i, diagonal cubic V3(i,i,i), diagonal quartic V4(i,i,i,i)
 if (n_diff <= 1) then !these checks were needes before
     do ii = 1, N_modes
-        if (abs(prod_except_i(ii)) < 1.d-30) cycle
+       ! if (abs(prod_except_i(ii)) < 1.d-30) cycle
         H_val = H_val + ( &
             modal_int(ii, vm(ii), vn(ii), 5) &
             + modal_int(ii, vm(ii), vn(ii), 4) * Potential_4(ii,ii,ii,ii) &
@@ -140,12 +140,12 @@ if (n_diff <= 3) then
             Vc_check = 1
             do pp = 1, n_unique_3(jj)
                 mode_idx = unique_modes_3(jj, pp)
-                if (abs(ovlp(mode_idx)) < 1.d-300) then
-                    step_prod = 0.d0; exit
-                end if
+                !if (abs(ovlp(mode_idx)) < 1.d-300) then
+                !    step_prod = 0.d0; exit
+                !end if
                 step_prod = step_prod / ovlp(mode_idx)
             end do
-            if (abs(step_prod) < 1.d-30) cycle
+          !  if (abs(step_prod) < 1.d-30) cycle
             do pp = 1, 3
                 if (final_index_3(jj, pp) > 0 .and. count_index_3(jj, pp) /= 3) then
                     Vc_check = 0
@@ -175,12 +175,12 @@ if (n_diff <= 3) then
             Vc_check = 1
             do pp = 1, n_unique_3(jj)
                 mode_idx = unique_modes_3(jj, pp)
-                if (abs(ovlp(mode_idx)) < 1.d-300) then
-                    step_prod = 0.d0; exit
-                end if
+              !  if (abs(ovlp(mode_idx)) < 1.d-300) then
+              !      step_prod = 0.d0; exit
+              !  end if
                 step_prod = step_prod / ovlp(mode_idx)
             end do
-            if (abs(step_prod) < 1.d-30) cycle
+          !  if (abs(step_prod) < 1.d-30) cycle
             do pp = 1, 3
                 if (final_index_3(jj, pp) > 0 .and. count_index_3(jj, pp) /= 3) then
                     Vc_check = 0
@@ -203,12 +203,12 @@ if (n_diff <= to_sparse_cut) then
             Vc_check = 1
             do pp = 1, n_unique_4(jj)
                 mode_idx = unique_modes_4(jj, pp)
-                if (abs(ovlp(mode_idx)) < 1.d-300) then
-                    step_prod = 0.d0; exit
-                end if
+                !if (abs(ovlp(mode_idx)) < 1.d-300) then
+                !    step_prod = 0.d0; exit
+                !end if
                 step_prod = step_prod / ovlp(mode_idx)
             end do
-            if (abs(step_prod) < 1.d-30) cycle
+           ! if (abs(step_prod) < 1.d-30) cycle
             do pp = 1, 4
                 if (final_index_4(jj, pp) > 0 .and. count_index_4(jj, pp) /= 4) then
                     Vc_check = 0
@@ -237,12 +237,12 @@ if (n_diff <= to_sparse_cut) then
             Vc_check = 1
             do pp = 1, n_unique_4(jj)
                 mode_idx = unique_modes_4(jj, pp)
-                if (abs(ovlp(mode_idx)) < 1.d-300) then
-                    step_prod = 0.d0; exit
-                end if
+                !if (abs(ovlp(mode_idx)) < 1.d-300) then
+                !    step_prod = 0.d0; exit
+                !end if
                 step_prod = step_prod / ovlp(mode_idx)
             end do
-            if (abs(step_prod) < 1.d-30) cycle
+           ! if (abs(step_prod) < 1.d-30) cycle
             do pp = 1, 4
                 if (final_index_4(jj, pp) > 0 .and. count_index_4(jj, pp) /= 4) then
                     Vc_check = 0

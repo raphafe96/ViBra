@@ -548,7 +548,6 @@ end if !end checking if runs HO or VSCF
     write(101,'(A)') '========================================'
     write(101,'(A)') '            STARTING  VCI               '
     write(101,'(A)') '========================================'
-
   !just for debug
 
 if (test == 1) then
