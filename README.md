@@ -141,17 +141,23 @@ An example compilation command using Intel Fortran is:
 
 This command enables optimization, OpenMP parallelization, threaded MKL routines, 64-bit compilation, and heap allocation for temporary arrays.
 
-Depending on your installation, you may need to compile the source files in a specific order. A typical order is:
-
-    integrals.f90
-    get_combination.f90
-    jacobi.f90
-    symmetry.f90
-    one_mode_operation.f90
-    read_input.f90
-    read_orca.f90
-    vci.f90
-    main.f90
+> **⚠️ Important Note — Non-MKL Compilation and File Order**:
+>
+> **If you are not using Intel MKL**, you must edit `main.f90` before compiling. The Intel MKL dependency appears in two places within that file:
+>
+> 1. **Module declaration** — remove the line:
+>    ```fortran
+>    use mkl_service
+>    ```
+> 2. **Thread setting** — remove or replace the line:
+>    ```fortran
+>    call mkl_set_num_threads(...)
+>    ```
+>    with an equivalent call from your LAPACK/BLAS library (e.g., `openblas_set_num_threads` for OpenBLAS).
+>
+> All other source files are portable: `jacobi.f90` uses standard LAPACK routines (`dsyevr`, `dsyevd`), and `vci.f90` uses `ddot` from BLAS. You only need to ensure that your compiler links against an available LAPACK/BLAS wrapper (e.g., `-llapack -lblas` for reference implementations, or `-lopenblas` for OpenBLAS).
+>
+> **Compilation order matters.** Each `.f90` file declares its own modules at the very beginning, and later files depend on modules defined in earlier files. Using a wildcard like `*.f90` may not resolve dependencies correctly and can lead to incorrect results. Compile the files module-by-module, checking the dependencies declared at the top of each `.f90` file to determine the correct order. Alternatively, you can force compile multiple times until all module dependencies are resolved.
 
 If additional modules are included in the source directory, compile them before the files that use them.
 
@@ -166,6 +172,8 @@ If using `gfortran`, LAPACK, BLAS, and OpenMP must be linked manually. For examp
     gfortran -O3 -fopenmp *.f90 -llapack -lblas -o ViBra
 
 The exact command may vary depending on the installed libraries and operating system.
+
+> **⚠️ Important Note for Non-MKL Users**: The same MKL-dependency and compilation-order warnings described above apply here as well. If you are not using MKL, edit `main.f90` to remove the `use mkl_service` statement and the `call mkl_set_num_threads(...)` line, replacing the latter with an equivalent thread-setting call from your LAPACK/BLAS library. Compile the files module-by-module by checking the dependencies at the top of each `.f90` file, or force compile multiple times until all module dependencies are resolved.
 
 ## 📝 Input File
 
