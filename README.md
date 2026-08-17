@@ -72,7 +72,7 @@ To generate the required `.vpt2` file for ViBra, you need to run two sequential 
 
 **1. Geometry Optimization**
 
-    ! Opt VeryTightSCF ExtremeSCF wB97X-D4 aug-cc-pvtz
+    ! Opt VeryTightSCF wB97X-D4 aug-cc-pvtz
 
     %scf
        MaxIter 300
@@ -95,7 +95,7 @@ To generate the required `.vpt2` file for ViBra, you need to run two sequential 
 
 **2. VPT2 Calculation**
 
-    ! VeryTightSCF ExtremeSCF wB97X-D4 aug-cc-pvtz VPT2
+    ! VeryTightSCF wB97X-D4 aug-cc-pvtz VPT2
 
     %vpt2
       VPT2 true
