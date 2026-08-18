@@ -400,6 +400,12 @@ You are free to use, share, and modify ViBra for non-commercial purposes, provid
 
 Full license text: http://creativecommons.org/licenses/by-nc/4.0/
 
+## 🤖 AI Usage and Backup
+
+In the age of vibe-coding, it is important to note:
+
+AI tools were used to assist with cleaning up the source code, improving organization, and adding comments. They were also used to generate repetitive code structures, apply consistent formatting, and expand similar routines, as well as to help translate portions of the documentation (PT/EN). All core functionality was designed, implemented, and tested by the developers. Every AI-generated or AI-suggested change was reviewed, tested, and verified before being incorporated. Backup copies of the original source files are maintained by the developers.
+
 ## 📧 Contact
 
-For questions, bug reports, or contributions, please contact the project maintainers.
+Remember: this is an under development project. For questions, bug reports, or contributions, please contact the project maintainers.
