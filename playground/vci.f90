@@ -10,6 +10,18 @@ contains
 
 
 !TO DO - remove sparse_diff_modes from everything- it is an old trash variable, that may increase memory but does nothing ;D I did it from the fullCI module, since it is the one with the largest hamiltonians.
+!TO DO - add the restriction to ndiff .lt. 3 to SA-VCI and S-VCI
+!TO DO - add absolute dipoles to SA and S-VCI
+!TO DO - add davidson to SA and S-VCI. (specially S-VCI)
+
+!TO DO - Work on parallelization of computing H elements (got like 4x speedup when moving from 1 to 8 threads) for the vib_ci routine (full VCI) when calling davidson. Part of this less speedup I believe it is because my pc has other things running as well, so it takes cpu time
+!TO DO - There is a critical statement in the sparse pair list, this dumps a lot the perfomance, but in the entire process of build H. the computing elements part is the one that takes longer. This part improved only 2x when 8 threads were used.
+!The overall speedup for etileno with (from 1 to) 8 threads was around 3x only. Being the overall - I used 7 quantas to test. (20 and 65 secs - 1 and 8 cores)
+
+!for the davison solver, same etileno, overall speeup was 5x (27s to 135s)
+
+
+!TO DO - add extra timer counter for specif parts, klike I did for davidson solver... 
 
 !good news :D
 !Attention: orca uses a semi quartic force field, meaning all modes can differ up to 3, not 4! it is because it must have at least two indices the same in the quartic terms, which simplifies a LOT!
@@ -401,6 +413,9 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   integer(8) :: t_start, t_end, count_rate, count_max
   real(8) :: elapsed_time, start_time, end_time
 
+  integer(8) :: t_start_dav, t_end_dav, count_rate_dav, count_max_dav
+  real(8) :: elapsed_time_dav, start_time_dav, end_time_dav
+
   cm_to_hartree = 0.0000045563350d0
   call system_clock(count_rate=count_rate, count_max=count_max)
   call system_clock(t_start)
@@ -461,7 +476,7 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
        ' modes, max_quanta=', max_quanta_actual
   call omp_set_num_threads(INT(N_threads, KIND=4))
 
-! No parallel needed here !$OMP PARALLEL DO PRIVATE(ii, i, j, p, mu, nu) COLLAPSE(2) SCHEDULE(static)
+!$OMP PARALLEL DO PRIVATE(ii, i, j, p, mu, nu) COLLAPSE(2) SCHEDULE(static) !This parallel section is not very efficient... loops are not so large.
   do ii = 1, N_modes
      do i = 0, max_quanta_actual
         do j = i, max_quanta_actual
@@ -482,7 +497,7 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
         end do
      end do
   end do
- ! No parallel needed here !$OMP END PARALLEL DO
+ !$OMP END PARALLEL DO
   write(*,'(A)') ' Modal integrals precomputed.'
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -529,9 +544,9 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   allocate(sparse_m(n_sparse), sparse_n(n_sparse))
   allocate(sparse_ndiff(n_sparse))
   idx = 0
-  !$omp parallel do private(m, n_diff, ii, diff_modes) &
-  !$omp shared(idx, sparse_m, sparse_n, sparse_ndiff, vec_combinations, N_modes, total_combinations,to_sparse_cut) &
-  !$omp default(none)
+   !$omp parallel do private(m, n_diff, ii, diff_modes) &
+   !$omp shared(idx, sparse_m, sparse_n, sparse_ndiff, vec_combinations, N_modes, total_combinations,to_sparse_cut) &
+   !$omp default(none)
   do n = 1, total_combinations
      do m = n, total_combinations
         n_diff = 0
@@ -553,7 +568,7 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
         end if
      end do
   end do
-  !$omp end parallel do
+   !$omp end parallel do
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Build dipole-specific pair list (n_diff <= 2 only)
@@ -711,12 +726,23 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
 !  end if
 
   if (use_davidson) then
+     call system_clock(count_rate=count_rate_dav, count_max=count_max_dav)
+     call system_clock(t_start_dav)
+     call cpu_time(start_time_dav)
+
      write(*,'(1A,I4)') ' >>>>> Using Davidson eigensolver. Roots requested: ', Nfirst_davidson
      call jacobi_davidson_eigensolver(total_combinations, Nfirst_davidson, &
           n_sparse_dav, sparse_m_dav, sparse_n_dav, H_sparse, &
           davidson_tol, davidson_max_iter, eigenvalues, eigenvectors)
      write(*,'(1A)') ' Davidson eigensolver finished.'
      deallocate(H_sparse, sparse_m_dav, sparse_n_dav)
+
+    call cpu_time(end_time_dav)
+    call system_clock(t_end_dav)
+    elapsed_time_dav = real(t_end_dav - t_start_dav) / real(count_rate_dav)
+    write(*,'(1A, 1F12.2, 1A)') " DAV CPU time:     ", end_time_dav - start_time_dav, " seconds"
+    write(*,'(1A, 1F12.2, 1A)') " DAV elapsed time: ", elapsed_time_dav, " seconds"
+
   else
      write(*,'(1A)') ' >>>>> H matrix assembled. Entering diagonalisation...'
      call system_clock(t_start)

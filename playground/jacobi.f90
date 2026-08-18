@@ -274,7 +274,8 @@ subroutine jacobi_davidson_eigensolver(N_dim, Nfirst, &
   do i = 1, N_dim
      ind(i) = i
   end do
-  call qsort_diag(H_diag, ind, N_dim)          ! index array sorted by increasing H_diag
+  call qsort_diagB(H_diag, ind, N_dim, Nfirst)          ! index array sorted by increasing H_diag
+
   k_current = 0
   do j = 1, Nfirst
      k_current = k_current + 1
@@ -586,7 +587,7 @@ end subroutine jacobi_davidson_eigensolver
 !=============================================================================!
 
 ! Simple insertion sort to order the diagonal elements.  It returns indices
-! in ascending order of the corresponding H_diag values.
+! in ascending order of the corresponding H_diag values. OLD OLD OLD Deprecate, I will keep just for... why not.
 subroutine qsort_diag(arr, ind, n)
   implicit none
   integer, intent(in) :: n
@@ -605,6 +606,32 @@ subroutine qsort_diag(arr, ind, n)
      ind(j+1) = tmp
   end do
 end subroutine qsort_diag
+
+
+subroutine qsort_diagB(arr, ind, n, k)
+  implicit none
+  integer, intent(in)  :: n, k  
+  real*8,  intent(in)  :: arr(n)     
+  integer, intent(out) :: ind(n)     
+                                 
+
+  real*8  :: temp(n)                 
+  integer :: i, idx
+  ind = 0
+
+  if (k > n) then
+     print *, "Error: k > n in qsort_diag"
+     stop
+  end if
+  temp = arr
+
+  do i = 1, k
+     idx = minloc(temp, dim=1)       
+     ind(i) = idx                    
+     temp(idx) = huge(1.0d0)         
+  end do
+
+end subroutine qsort_diagB
 
 ! Modified Gram–Schmidt orthonormalisation for a set of vectors.
 ! Vectors whose norm drops below 1.d-8 are considered numerically zero
@@ -705,7 +732,6 @@ subroutine matvec_block(N_dim, nb, V_in, W_out, n_sparse, sparse_m, sparse_n, H_
   real*8, allocatable :: W_priv(:,:)
 
   if (nb > 1) then
-
      !$OMP PARALLEL DO DEFAULT(NONE) &
      !$OMP& SHARED(n_sparse, sparse_m, sparse_n, H_sparse, V_in, W_out, nb) &
      !$OMP& PRIVATE(col, idx, m, n) &
@@ -720,9 +746,7 @@ subroutine matvec_block(N_dim, nb, V_in, W_out, n_sparse, sparse_m, sparse_n, H_
         end do
      end do
      !$OMP END PARALLEL DO
-
   else
-
      nthreads = omp_get_max_threads()
      allocate(W_priv(N_dim, 0:nthreads-1))
      W_priv = 0.0d0
@@ -745,9 +769,7 @@ subroutine matvec_block(N_dim, nb, V_in, W_out, n_sparse, sparse_m, sparse_n, H_
         W_out(:,1) = W_out(:,1) + W_priv(:,tid)
      end do
      deallocate(W_priv)
-
   end if
-
 end subroutine matvec_block
 
 end module jacobi_diagonalization
