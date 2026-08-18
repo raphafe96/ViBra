@@ -400,9 +400,9 @@ You are free to use, share, and modify ViBra for non-commercial purposes, provid
 
 Full license text: http://creativecommons.org/licenses/by-nc/4.0/
 
-## 🤖 AI Usage
+## AI Usage
 
-AI tools (LLM e.g. Claude/DeepSeek) were used during development for source code cleanup, formatting consistency, adding comments, and translation regarding drafting bilingual (PT/EN) documentation. Where AI suggested boilerplate or repetitive code (e.g., expanding structurally similar routines), every such change was reviewed, tested, and verified by the developers before being incorporated. Core algorithms and numerical methods were designed, implemented, and validated independently of AI assistance.
+AI tools (LLMs e.g. Claude/DeepSeek) were used during development for code cleanup, formatting consistency, adding comments, and translation regarding bilingual (PT/EN) documentation. Where AI suggested boilerplate or repetitive code (e.g., expanding structurally similar routines), every such change was reviewed, tested, and verified by the developers before being incorporated. Core algorithms and numerical methods were designed, implemented, and validated independently of AI assistance.
 
 
 ## 📧 Contact
