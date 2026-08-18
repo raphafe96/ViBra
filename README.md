@@ -400,11 +400,10 @@ You are free to use, share, and modify ViBra for non-commercial purposes, provid
 
 Full license text: http://creativecommons.org/licenses/by-nc/4.0/
 
-## 🤖 AI Usage and Backup
+## 🤖 AI Usage
 
-In the age of vibe-coding, it is important to note:
+AI tools (LLM e.g. Claude/DeepSeek) were used during development for source code cleanup, formatting consistency, adding comments, and translation regarding drafting bilingual (PT/EN) documentation. Where AI suggested boilerplate or repetitive code (e.g., expanding structurally similar routines), every such change was reviewed, tested, and verified by the developers before being incorporated. Core algorithms and numerical methods were designed, implemented, and validated independently of AI assistance.
 
-AI tools were used to assist with cleaning up the source code, improving organization, and adding comments. They were also used to generate repetitive code structures, apply consistent formatting, and expand similar routines, as well as to help translate portions of the documentation (PT/EN). All core functionality was designed, implemented, and tested by the developers. Every AI-generated or AI-suggested change was reviewed, tested, and verified before being incorporated. Backup copies of the original source files are maintained by the developers.
 
 ## 📧 Contact
 
