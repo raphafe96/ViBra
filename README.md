@@ -153,7 +153,7 @@ This command enables optimization, OpenMP parallelization, threaded MKL routines
 >    ```fortran
 >    call mkl_set_num_threads(...)
 >    ```
->    with an equivalent call from your LAPACK/BLAS library (e.g., `openblas_set_num_threads` for OpenBLAS).
+>    with an equivalent call from your LAPACK/BLAS library (e.g., `openblas_set_num_threads` for OpenBLAS). **There are two occurrences of this declaration in main.f90. Replace both!**
 >
 > All other source files are portable: `jacobi.f90` uses standard LAPACK routines (`dsyevr`, `dsyevd`), and `vci.f90` uses `ddot` from BLAS. You only need to ensure that your compiler links against an available LAPACK/BLAS wrapper (e.g., `-llapack -lblas` for reference implementations, or `-lopenblas` for OpenBLAS).
 >
