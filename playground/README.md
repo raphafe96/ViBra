@@ -68,8 +68,7 @@ Happy exploring, and may your vibrations always be harmonic!
 
 **18/08/2026**
 
-* Replaced `qsort_diag` with `qsort_diag2` in `jacobi.f90`.
-* Introduced a new sorting algorithm.
+* Replaced `qsort_diag` with `qsort_diag2` in `jacobi.f90` (introduced a new sorting algorithm).
 
 **18/08/2026**
 
