@@ -59,7 +59,7 @@ Happy exploring, and may your vibrations always be harmonic!
 * Removed obsolete and unused variables.
 * Added intensities in km/mol.
 * Implemented iterative diagonalization.
-* Improved sparse pair-list construction for semi-quartic force fields (`ndif <= 3`).
+* Improved sparse pair-list construction for ORCA semi-quartic force fields (`ndif <= 3`).
 
 **18/08/2026**
 
