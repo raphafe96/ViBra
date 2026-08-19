@@ -70,7 +70,7 @@ Happy exploring, and may your vibrations always be harmonic!
 
 * Started documenting the changelog here. For previous changes, check code backups.
 
-**2026**
+**July-Aug 2026**
 
 * Added iterative diagonalization.
 * Added intensities in km/mol.
