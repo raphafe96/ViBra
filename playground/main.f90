@@ -117,6 +117,12 @@ program main_vscf
   !===========================================================================
   integer :: max_states
 
+  !===========================================================================
+  ! DAV
+  !===========================================================================
+  integer :: use_davidson_int
+  logical :: use_davidson
+
 
   !===========================================================================
   ! Timing
@@ -154,13 +160,20 @@ program main_vscf
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
  ! if (test == 1) use_vci_at_vscf = 1
+ 
 
 
   if (test == 0) then
     call read_inp(input_file, N_modes, N_expansion, constants_file,   &
                   constants_mode, N_quanta, N_states, conv_scf,       &
                   N_threads, point_group_input, proj_cutoff,           &
-                  max_iter_sci, sci_mode, quanta_max_reference_sci)                                        
+                  max_iter_sci, sci_mode, quanta_max_reference_sci) 
+
+   use_davidson = .false.
+   call read_intg('RUNDAV', use_davidson_int, 0)
+   if (use_davidson_int == 1) use_davidson = .true.
+   if (use_davidson) N_states = -1        
+                                  
   else
     N_modes         = 3
     N_expansion     = 10

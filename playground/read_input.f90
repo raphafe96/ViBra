@@ -394,7 +394,7 @@ module read_input_file
     val = default_val
     return
   end if
-
+  
   ! Open file and search for keyword
   open(newunit=iounit, file='extra_input.txt', status='old', action='read', iostat=ios)
   if (ios /= 0) then

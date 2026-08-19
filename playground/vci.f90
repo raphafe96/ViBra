@@ -10,9 +10,20 @@ contains
 
 
 !TO DO - remove sparse_diff_modes from everything- it is an old trash variable, that may increase memory but does nothing ;D I did it from the fullCI module, since it is the one with the largest hamiltonians.
+    !Update: removed for selected vci as well
+    !Missing: need to remove from SA VCI
+
 !TO DO - add the restriction to ndiff .lt. 3 to SA-VCI and S-VCI
+    !Update: done for S-VCI
+    !MISSING: need to do for SA
+
 !TO DO - add absolute dipoles to SA and S-VCI
+    !Update: done for S-VCI
+    !MISSING: need to do for SA
+
 !TO DO - add davidson to SA and S-VCI. (specially S-VCI)
+    !Update: done for S-VCI
+    !MISSING: need to do for SA
 
 !TO DO - Work on parallelization of computing H elements (got like 4x speedup when moving from 1 to 8 threads) for the vib_ci routine (full VCI) when calling davidson. Part of this less speedup I believe it is because my pc has other things running as well, so it takes cpu time
 !TO DO - There is a critical statement in the sparse pair list, this dumps a lot the perfomance, but in the entire process of build H. the computing elements part is the one that takes longer. This part improved only 2x when 8 threads were used.
@@ -796,7 +807,7 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   ! Determine how many transitions lie below 4500 cm⁻¹
   number_to_print_int = 0
   do i = 1, N_states_loc - 1
-     if ( (eigenvalues(i+1) - eigenvalues(1))/cm_to_hartree < 4500.0d0 ) then
+     if ( (eigenvalues(i+1) - eigenvalues(1))/cm_to_hartree < max_freq ) then
         number_to_print_int = number_to_print_int + 1
      end if
   end do
@@ -1018,7 +1029,7 @@ integer :: n_ref, n_sel, n_ext, n_new
 integer :: n_sparse, idx, cc
 integer :: n_cisd_states, i_state
 integer :: number_to_print_int
-integer :: diff_modes(4)
+integer, allocatable :: diff_modes(:)
 real*8  :: cm_to_hartree
 real*8  :: H_val, H_aa, e_alpha, denom
 real*8  :: step_prod, prod_all
@@ -1045,9 +1056,8 @@ real*8, allocatable :: eigenvalues(:), eigenvectors(:,:)
 !---------------------------------------------------------------------------
 ! SPARSE PAIR LIST FOR ACTIVE SPACE
 !---------------------------------------------------------------------------
-integer, allocatable :: sparse_m(:), sparse_n(:)
+integer(kind=4), allocatable :: sparse_m(:), sparse_n(:)
 integer, allocatable :: sparse_ndiff(:)
-integer, allocatable :: sparse_diff_modes(:,:)
 
 !---------------------------------------------------------------------------
 ! DIPOLE ARRAYS
@@ -1087,11 +1097,56 @@ real*8  :: prod_except_i(N_modes), step_prod_loc
 integer(8) :: t_start, t_end, count_rate_val, count_max_val
 real(8)    :: elapsed_time, start_time, end_time
 
+!---------------------------------------------------------------------------
+! FOR DAV
+!---------------------------------------------------------------------------
+real*8 :: davidson_tol, H_threshold, max_freq
+integer :: davidson_max_iter, Nfirst_davidson, use_davidson_int, estimate_states
+logical :: use_davidson, is_semiquartic_ff
+real*8, allocatable :: H_sparse(:)
+integer(kind=4), allocatable :: sparse_m_dav(:), sparse_n_dav(:)
+integer :: n_sparse_dav
+integer :: n_sparse_dip
+integer :: to_sparse_cut
+integer(kind=4), allocatable :: sparse_m_dip(:), sparse_n_dip(:), sparse_ndiff_dip(:)
+integer(8) :: t_start_dav, t_end_dav, count_rate_dav, count_max_dav
+real(8) :: elapsed_time_dav, start_time_dav, end_time_dav
+integer, allocatable :: tmp_sparse_int(:)
+real(8), allocatable :: tmp_sparse_real(:)
+integer :: max_quanta_actual
+integer :: to_write_output
+real*8, allocatable :: d_x(:), d_y(:), d_z(:)
+integer :: n_loc
+
 !==========================================================================
 ! INITIALIZATION
 !==========================================================================
 cm_to_hartree = 0.0000045563350d0
 max_quanta    = N_quanta
+max_quanta_actual = N_quanta
+
+check_list = 0
+if (mode_sci == 'list') then
+    check_list = 1
+    N_states = total_combinations2
+    !N_sel_per_state = 8
+end if
+
+  !NEW INPUT
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  use_davidson = .false.
+  call read_real('DAVCVG', davidson_tol, 0.0001d0)
+  call read_real('DAVCUT', H_threshold, 0.0000005d0)
+  call read_real('MAXFRQ', max_freq, 4500.d0)
+
+  call read_intg('DAVMAX', davidson_max_iter, 25)
+  call read_intg('DAVSTA', Nfirst_davidson, 10)
+  call read_intg('RUNDAV', use_davidson_int, 0)
+  call read_intg('RUNENR', estimate_states, 0)
+  
+
+  if (use_davidson_int == 1) use_davidson = .true.
+
 
 call system_clock(count_rate=count_rate_val, count_max=count_max_val)
 call system_clock(t_start)
@@ -1103,13 +1158,13 @@ write(*,'(A)') '        Reference + EN-PT2 top-N select  '
 write(*,'(A,I8,A)') '        N_sel_per_state = ', N_sel_per_state, ' configs/state'
 write(*,'(A)') ' ============================================='
 
+is_semiquartic_ff = .false.
+call classify_quartic_terms(total_4, final_index_4, n_unique_4, &
+      check4, Potential_4_vec, is_semiquartic_ff)
+  to_sparse_cut = merge(3, 4, is_semiquartic_ff)
+  write(*,'(A,I2)') ' Sparse pair-list cutoff set to n_diff <= ', to_sparse_cut
 
-check_list = 0
-if (mode_sci == 'list') then
-    check_list = 1
-    N_states = total_combinations2
-    !N_sel_per_state = 8
-end if
+allocate(diff_modes(to_sparse_cut))
 
 !==========================================================================
 ! STEP 1: Precompute modal integrals
@@ -1311,17 +1366,15 @@ if(check_list == 1) then
             do ii = 1, N_modes
                 if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff > 4) exit
+                    if (n_diff > to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) n_sparse = n_sparse + 1
+            if (n_diff <= to_sparse_cut) n_sparse = n_sparse + 1
         end do
     end do
 
     allocate(sparse_m(n_sparse), sparse_n(n_sparse))
     allocate(sparse_ndiff(n_sparse))
-    allocate(sparse_diff_modes(n_sparse,4))
-    sparse_diff_modes = 0
 
     ! --- Fill pass ---
     idx = 0
@@ -1333,16 +1386,15 @@ if(check_list == 1) then
             do ii = 1, N_modes
                 if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff <= 4) diff_modes(n_diff) = ii
-                    if (n_diff >  4) exit
+                    if (n_diff <= to_sparse_cut) diff_modes(n_diff) = ii
+                    if (n_diff >  to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) then
+            if (n_diff <= to_sparse_cut) then
                 idx = idx + 1
                 sparse_m(idx)          = j
                 sparse_n(idx)          = i
                 sparse_ndiff(idx)      = n_diff
-                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
             end if
         end do
     end do
@@ -1389,7 +1441,7 @@ if(check_list == 1) then
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+    deallocate(sparse_m, sparse_n, sparse_ndiff)
 end if
 
 if (check_list == 0) then 
@@ -1406,17 +1458,15 @@ if (check_list == 0) then
             do ii = 1, N_modes
                 if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff > 4) exit
+                    if (n_diff > to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) n_sparse = n_sparse + 1
+            if (n_diff <= to_sparse_cut) n_sparse = n_sparse + 1
         end do
     end do
 
     allocate(sparse_m(n_sparse), sparse_n(n_sparse))
     allocate(sparse_ndiff(n_sparse))
-    allocate(sparse_diff_modes(n_sparse,4))
-    sparse_diff_modes = 0
 
     ! --- Fill pass ---
     idx = 0
@@ -1428,16 +1478,15 @@ if (check_list == 0) then
             do ii = 1, N_modes
                 if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff <= 4) diff_modes(n_diff) = ii
-                    if (n_diff >  4) exit
+                    if (n_diff <= to_sparse_cut) diff_modes(n_diff) = ii
+                    if (n_diff >  to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) then
+            if (n_diff <= to_sparse_cut) then
                 idx = idx + 1
                 sparse_m(idx)          = j
                 sparse_n(idx)          = i
                 sparse_ndiff(idx)      = n_diff
-                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
             end if
         end do
     end do
@@ -1484,7 +1533,7 @@ if (check_list == 0) then
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+    deallocate(sparse_m, sparse_n, sparse_ndiff)
 
 end if
 
@@ -1535,7 +1584,7 @@ if (check_list == 0) then
     allocate(coupling_vec(n_cisd_states))
 
     !$OMP PARALLEL DO DEFAULT(NONE) &
-    !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations, &
+    !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations, to_sparse_cut, &
     !$OMP&        N_modes, max_quanta, modal_int, &
     !$OMP&        Potential_3, Potential_4, HO_freq, &
     !$OMP&        Potential_3_vec, Potential_4_vec, &
@@ -1575,10 +1624,10 @@ if (check_list == 0) then
             do ii = 1, N_modes
                 if (vm(ii) /= vn(ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff > 4) exit
+                    if (n_diff > to_sparse_cut) exit
                 end if
             end do
-            if (n_diff > 4) cycle
+            if (n_diff > to_sparse_cut) cycle
 
             call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
                 modal_int, Potential_3, Potential_4, HO_freq, &
@@ -1634,7 +1683,7 @@ if (check_list == 1) then
     allocate(coupling_vec(n_cisd_states))
 
     !$OMP PARALLEL DO DEFAULT(NONE) &
-    !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations2, &
+    !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations2, to_sparse_cut, &
     !$OMP&        N_modes, max_quanta, modal_int, &
     !$OMP&        Potential_3, Potential_4, HO_freq, &
     !$OMP&        Potential_3_vec, Potential_4_vec, &
@@ -1674,10 +1723,10 @@ if (check_list == 1) then
             do ii = 1, N_modes
                 if (vm(ii) /= vn(ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff > 4) exit
+                    if (n_diff > to_sparse_cut) exit
                 end if
             end do
-            if (n_diff > 4) cycle
+            if (n_diff > to_sparse_cut) cycle
 
             call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
                 modal_int, Potential_3, Potential_4, HO_freq, &
@@ -1835,17 +1884,15 @@ if (check_list == 0) then
             do ii = 1, N_modes
                 if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff > 4) exit
+                    if (n_diff > to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) n_sparse = n_sparse + 1
+            if (n_diff <= to_sparse_cut) n_sparse = n_sparse + 1
         end do
     end do
 
     allocate(sparse_m(n_sparse), sparse_n(n_sparse))
     allocate(sparse_ndiff(n_sparse))
-    allocate(sparse_diff_modes(n_sparse,4))
-    sparse_diff_modes = 0
 
     idx = 0
     do j = 1, n_sel
@@ -1856,75 +1903,174 @@ if (check_list == 0) then
             do ii = 1, N_modes
                 if (vec_combinations(m,ii) /= vec_combinations(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff <= 4) diff_modes(n_diff) = ii
-                    if (n_diff >  4) exit
+                    if (n_diff <= to_sparse_cut) diff_modes(n_diff) = ii
+                    if (n_diff >  to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) then
+            if (n_diff <= to_sparse_cut) then
                 idx = idx + 1
                 sparse_m(idx)              = j
                 sparse_n(idx)              = i
                 sparse_ndiff(idx)          = n_diff
-                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
             end if
         end do
     end do
+    
 
-    ! Fill final H_sel
-    allocate(H_sel(n_sel, n_sel))
-    H_sel = 0.d0
+    if (.not. use_davidson) then
+        ! Fill final H_sel
+        allocate(H_sel(n_sel, n_sel))
+        H_sel = 0.d0
 
-    !$OMP PARALLEL DO DEFAULT(NONE) &
-    !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
-    !$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
-    !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
-    !$OMP&        Potential_3_vec, Potential_4_vec, &
-    !$OMP&        check3, check4, total_3, total_4, &
-    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-    !$OMP&        H_sel) &
-    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
-    !$OMP& SCHEDULE(dynamic, 64)
-    do k = 1, n_sparse
-        i = sparse_m(k)
-        j = sparse_n(k)
-        m = sel_list(i)
-        n = sel_list(j)
-        vm(1:N_modes) = vec_combinations(m, 1:N_modes)
-        vn(1:N_modes) = vec_combinations(n, 1:N_modes)
+        !$OMP PARALLEL DO DEFAULT(NONE) &
+        !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+        !$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
+        !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+        !$OMP&        Potential_3_vec, Potential_4_vec, &
+        !$OMP&        check3, check4, total_3, total_4, &
+        !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+        !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+        !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+        !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+        !$OMP&        H_sel) &
+        !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+        !$OMP& SCHEDULE(dynamic, 64)
+        do k = 1, n_sparse
+            i = sparse_m(k)
+            j = sparse_n(k)
+            m = sel_list(i)
+            n = sel_list(j)
+            vm(1:N_modes) = vec_combinations(m, 1:N_modes)
+            vn(1:N_modes) = vec_combinations(n, 1:N_modes)
 
-        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
-            modal_int, Potential_3, Potential_4, HO_freq, &
-            Potential_3_vec, Potential_4_vec, &
-            check3, check4, total_3, total_4, &
-            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-            H_val)
-        H_sel(i,j) = H_val
-        H_sel(j,i) = H_val
-    end do
-    !$OMP END PARALLEL DO
+            call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+                modal_int, Potential_3, Potential_4, HO_freq, &
+                Potential_3_vec, Potential_4_vec, &
+                check3, check4, total_3, total_4, &
+                final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+                final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+                cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+                quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+                H_val)
+            H_sel(i,j) = H_val
+            H_sel(j,i) = H_val
+        end do
+        !$OMP END PARALLEL DO
 
-    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+    else !conditional to use DAV
+        allocate(H_sparse(n_sparse))
+        H_sparse = 0.d0
+        write(*,'(A)') ' Precomputing sparse Hamiltonian matrix (Davidson)...'
+                !$OMP PARALLEL DO DEFAULT(NONE) &
+        !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+        !$OMP&        n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
+        !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+        !$OMP&        Potential_3_vec, Potential_4_vec, &
+        !$OMP&        check3, check4, total_3, total_4, &
+        !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+        !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+        !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+        !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+        !$OMP&        H_sparse) &
+        !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+        !$OMP& SCHEDULE(dynamic, 64)
+        do k = 1, n_sparse
+            i = sparse_m(k)
+            j = sparse_n(k)
+            m = sel_list(i)
+            n = sel_list(j)
+            vm(1:N_modes) = vec_combinations(m, 1:N_modes)
+            vn(1:N_modes) = vec_combinations(n, 1:N_modes)
 
-    ! Diagonalize the final Hamiltonian
-    allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
-    eigenvalues  = 0.d0
-    eigenvectors = 0.d0
+            call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+                modal_int, Potential_3, Potential_4, HO_freq, &
+                Potential_3_vec, Potential_4_vec, &
+                check3, check4, total_3, total_4, &
+                final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+                final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+                cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+                quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+                H_val)
+            H_sparse(k) = H_val
+        end do
+        !$OMP END PARALLEL DO
+        write(*,'(A)') ' Sparse Hamiltonian precomputed.'
 
-    if (n_sel <= N_states) then
-        call dsyevd_A(H_sel, eigenvalues, eigenvectors)
-    else
-        call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+        ! Build a SEPARATE, compacted copy for the Davidson matvec only
+        write(*,'(A,ES10.3)') ' Filtering elements below threshold (Davidson H only): ', H_threshold
+        allocate(sparse_m_dav(n_sparse), sparse_n_dav(n_sparse))
+        n_sparse_dav = 0
+        do idx = 1, n_sparse
+           if (abs(H_sparse(idx)) >= H_threshold) then
+              n_sparse_dav = n_sparse_dav + 1
+              sparse_m_dav(n_sparse_dav) = sparse_m(idx)
+              sparse_n_dav(n_sparse_dav) = sparse_n(idx)
+              H_sparse(n_sparse_dav)     = H_sparse(idx)
+           end if
+        end do
+        write(*,'(A,I0,A,I0,A,F6.2,A)') &
+             ' Kept ', n_sparse_dav, ' / ', n_sparse, &
+             ' elements (', 100.0d0 * real(n_sparse_dav,8) / real(n_sparse,8), '% retained)'
+
+        ! Reallocate to exact size
+        allocate(tmp_sparse_int(n_sparse_dav))
+        tmp_sparse_int(:) = sparse_m_dav(1:n_sparse_dav)
+        deallocate(sparse_m_dav)
+        allocate(sparse_m_dav(n_sparse_dav))
+        sparse_m_dav(:) = tmp_sparse_int(:)
+        deallocate(tmp_sparse_int)
+
+        allocate(tmp_sparse_int(n_sparse_dav))
+        tmp_sparse_int(:) = sparse_n_dav(1:n_sparse_dav)
+        deallocate(sparse_n_dav)
+        allocate(sparse_n_dav(n_sparse_dav))
+        sparse_n_dav(:) = tmp_sparse_int(:)
+        deallocate(tmp_sparse_int)
+
+        allocate(tmp_sparse_real(n_sparse_dav))
+        tmp_sparse_real(:) = H_sparse(1:n_sparse_dav)
+        deallocate(H_sparse)
+        allocate(H_sparse(n_sparse_dav))
+        H_sparse(:) = tmp_sparse_real(:)
+        deallocate(tmp_sparse_real)
+
+        write(*,'(A,I0)') ' Final number of Davidson sparse elements: ', n_sparse_dav
+
     end if
 
-    deallocate(H_sel)
+    if (.not. use_davidson) then
+        ! Diagonalize the final Hamiltonian
+        allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
+        eigenvalues  = 0.d0
+        eigenvectors = 0.d0
 
-end if
+        if (n_sel <= N_states) then
+            call dsyevd_A(H_sel, eigenvalues, eigenvectors)
+        else
+            call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+        end if
+        deallocate(H_sel)
+    else 
+        if (Nfirst_davidson .gt. n_sel) Nfirst_davidson = n_sel
+        call system_clock(count_rate=count_rate_dav, count_max=count_max_dav)
+        call system_clock(t_start_dav)
+        call cpu_time(start_time_dav)
+        allocate(eigenvalues(Nfirst_davidson), eigenvectors(n_sel, Nfirst_davidson))
+        write(*,'(1A,I4)') ' >>>>> Using Davidson eigensolver. Roots requested: ', Nfirst_davidson
+        call jacobi_davidson_eigensolver(n_sel, Nfirst_davidson, &
+            n_sparse_dav, sparse_m_dav, sparse_n_dav, H_sparse, &
+            davidson_tol, davidson_max_iter, eigenvalues, eigenvectors)
+        write(*,'(1A)') ' Davidson eigensolver finished.'
+        deallocate(H_sparse, sparse_m_dav, sparse_n_dav)
+
+        call cpu_time(end_time_dav)
+        call system_clock(t_end_dav)
+        elapsed_time_dav = real(t_end_dav - t_start_dav) / real(count_rate_dav)
+        write(*,'(1A, 1F12.2, 1A)') " DAV CPU time:     ", end_time_dav - start_time_dav, " seconds"
+        write(*,'(1A, 1F12.2, 1A)') " DAV elapsed time: ", elapsed_time_dav, " seconds"
+    end if
+
+end if !conditional to check list
 
 if (check_list == 1) then
     ! Build the final sel_list from the union of CISD + selected externals
@@ -1940,9 +2086,9 @@ if (check_list == 1) then
     end do
 
     write(*,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
-    write(*,'(A,I8,A,I8,A)') '   (LIST: ', n_ref, ' + selected: ', n_new, ')'
+    write(*,'(A,I8,A,I8,A)') '   (REF.: ', n_ref, ' + selected: ', n_new, ')'
     write(101,'(A,I8,A)') ' Final active space: ', n_sel, ' configurations'
-    write(101,'(A,I8,A,I8,A)') '   (LIST: ', n_ref, ' + selected: ', n_new, ')'
+    write(101,'(A,I8,A,I8,A)') '   (REF.: ', n_ref, ' + selected: ', n_new, ')'
 
     ! Build sparse pair list for the final active space
     n_sparse = 0
@@ -1953,17 +2099,15 @@ if (check_list == 1) then
             do ii = 1, N_modes
                 if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff > 4) exit
+                    if (n_diff > to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) n_sparse = n_sparse + 1
+            if (n_diff <= to_sparse_cut) n_sparse = n_sparse + 1
         end do
     end do
 
     allocate(sparse_m(n_sparse), sparse_n(n_sparse))
     allocate(sparse_ndiff(n_sparse))
-    allocate(sparse_diff_modes(n_sparse,4))
-    sparse_diff_modes = 0
 
     idx = 0
     do j = 1, n_sel
@@ -1974,79 +2118,180 @@ if (check_list == 1) then
             do ii = 1, N_modes
                 if (vec_combinations2(m,ii) /= vec_combinations2(n,ii)) then
                     n_diff = n_diff + 1
-                    if (n_diff <= 4) diff_modes(n_diff) = ii
-                    if (n_diff >  4) exit
+                    if (n_diff <= to_sparse_cut) diff_modes(n_diff) = ii
+                    if (n_diff >  to_sparse_cut) exit
                 end if
             end do
-            if (n_diff <= 4) then
+            if (n_diff <= to_sparse_cut) then
                 idx = idx + 1
                 sparse_m(idx)              = j
                 sparse_n(idx)              = i
                 sparse_ndiff(idx)          = n_diff
-                sparse_diff_modes(idx,1:4) = diff_modes(1:4)
             end if
         end do
     end do
+    
 
-    ! Fill final H_sel
-    allocate(H_sel(n_sel, n_sel))
-    H_sel = 0.d0
+    if (.not. use_davidson) then
+        ! Fill final H_sel
+        allocate(H_sel(n_sel, n_sel))
+        H_sel = 0.d0
 
-    !$OMP PARALLEL DO DEFAULT(NONE) &
-    !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
-    !$OMP&        n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
-    !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
-    !$OMP&        Potential_3_vec, Potential_4_vec, &
-    !$OMP&        check3, check4, total_3, total_4, &
-    !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-    !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-    !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-    !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-    !$OMP&        H_sel) &
-    !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
-    !$OMP& SCHEDULE(dynamic, 64)
-    do k = 1, n_sparse
-        i = sparse_m(k)
-        j = sparse_n(k)
-        m = sel_list(i)
-        n = sel_list(j)
-        vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
-        vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
+        !$OMP PARALLEL DO DEFAULT(NONE) &
+        !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+        !$OMP&        n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
+        !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+        !$OMP&        Potential_3_vec, Potential_4_vec, &
+        !$OMP&        check3, check4, total_3, total_4, &
+        !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+        !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+        !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+        !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+        !$OMP&        H_sel) &
+        !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+        !$OMP& SCHEDULE(dynamic, 64)
+        do k = 1, n_sparse
+            i = sparse_m(k)
+            j = sparse_n(k)
+            m = sel_list(i)
+            n = sel_list(j)
+            vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
+            vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
 
-        call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
-            modal_int, Potential_3, Potential_4, HO_freq, &
-            Potential_3_vec, Potential_4_vec, &
-            check3, check4, total_3, total_4, &
-            final_index_3, count_index_3, n_unique_3, unique_modes_3, &
-            final_index_4, count_index_4, n_unique_4, unique_modes_4, &
-            cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
-            quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
-            H_val)
-        H_sel(i,j) = H_val
-        H_sel(j,i) = H_val
-    end do
-    !$OMP END PARALLEL DO
+            call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+                modal_int, Potential_3, Potential_4, HO_freq, &
+                Potential_3_vec, Potential_4_vec, &
+                check3, check4, total_3, total_4, &
+                final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+                final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+                cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+                quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+                H_val)
+            H_sel(i,j) = H_val
+            H_sel(j,i) = H_val
+        end do
+        !$OMP END PARALLEL DO
 
-    deallocate(sparse_m, sparse_n, sparse_ndiff, sparse_diff_modes)
+    else !conditional to use DAV
+        allocate(H_sparse(n_sparse))
+        H_sparse = 0.d0
+        write(*,'(A)') ' Precomputing sparse Hamiltonian matrix (Davidson)...'
+                !$OMP PARALLEL DO DEFAULT(NONE) &
+        !$OMP& SHARED(n_sparse, sparse_m, sparse_n, &
+        !$OMP&        n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
+        !$OMP&        modal_int, Potential_3, Potential_4, HO_freq, &
+        !$OMP&        Potential_3_vec, Potential_4_vec, &
+        !$OMP&        check3, check4, total_3, total_4, &
+        !$OMP&        final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+        !$OMP&        final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+        !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+        !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+        !$OMP&        H_sparse) &
+        !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val) &
+        !$OMP& SCHEDULE(dynamic, 64)
+        do k = 1, n_sparse
+            i = sparse_m(k)
+            j = sparse_n(k)
+            m = sel_list(i)
+            n = sel_list(j)
+            vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
+            vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
 
-    ! Diagonalize the final Hamiltonian
-    allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
-    eigenvalues  = 0.d0
-    eigenvectors = 0.d0
+            call compute_H_element(m, n, vm, vn, N_modes, max_quanta, &
+                modal_int, Potential_3, Potential_4, HO_freq, &
+                Potential_3_vec, Potential_4_vec, &
+                check3, check4, total_3, total_4, &
+                final_index_3, count_index_3, n_unique_3, unique_modes_3, &
+                final_index_4, count_index_4, n_unique_4, unique_modes_4, &
+                cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
+                quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
+                H_val)
+            H_sparse(k) = H_val
+        end do
+        !$OMP END PARALLEL DO
+        write(*,'(A)') ' Sparse Hamiltonian precomputed.'
 
-    if (n_sel <= N_states) then
-        call dsyevd_A(H_sel, eigenvalues, eigenvectors)
-    else
-        call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+        ! Build a SEPARATE, compacted copy for the Davidson matvec only
+        write(*,'(A,ES10.3)') ' Filtering elements below threshold (Davidson H only): ', H_threshold
+        allocate(sparse_m_dav(n_sparse), sparse_n_dav(n_sparse))
+        n_sparse_dav = 0
+        do idx = 1, n_sparse
+           if (abs(H_sparse(idx)) >= H_threshold) then
+              n_sparse_dav = n_sparse_dav + 1
+              sparse_m_dav(n_sparse_dav) = sparse_m(idx)
+              sparse_n_dav(n_sparse_dav) = sparse_n(idx)
+              H_sparse(n_sparse_dav)     = H_sparse(idx)
+           end if
+        end do
+        write(*,'(A,I0,A,I0,A,F6.2,A)') &
+             ' Kept ', n_sparse_dav, ' / ', n_sparse, &
+             ' elements (', 100.0d0 * real(n_sparse_dav,8) / real(n_sparse,8), '% retained)'
+
+        ! Reallocate to exact size
+        allocate(tmp_sparse_int(n_sparse_dav))
+        tmp_sparse_int(:) = sparse_m_dav(1:n_sparse_dav)
+        deallocate(sparse_m_dav)
+        allocate(sparse_m_dav(n_sparse_dav))
+        sparse_m_dav(:) = tmp_sparse_int(:)
+        deallocate(tmp_sparse_int)
+
+        allocate(tmp_sparse_int(n_sparse_dav))
+        tmp_sparse_int(:) = sparse_n_dav(1:n_sparse_dav)
+        deallocate(sparse_n_dav)
+        allocate(sparse_n_dav(n_sparse_dav))
+        sparse_n_dav(:) = tmp_sparse_int(:)
+        deallocate(tmp_sparse_int)
+
+        allocate(tmp_sparse_real(n_sparse_dav))
+        tmp_sparse_real(:) = H_sparse(1:n_sparse_dav)
+        deallocate(H_sparse)
+        allocate(H_sparse(n_sparse_dav))
+        H_sparse(:) = tmp_sparse_real(:)
+        deallocate(tmp_sparse_real)
+
+        write(*,'(A,I0)') ' Final number of Davidson sparse elements: ', n_sparse_dav
+
     end if
 
-    deallocate(H_sel)
+    if (.not. use_davidson) then
+        ! Diagonalize the final Hamiltonian
+        allocate(eigenvalues(n_sel), eigenvectors(n_sel, n_sel))
+        eigenvalues  = 0.d0
+        eigenvectors = 0.d0
 
+        if (n_sel <= N_states) then
+            call dsyevd_A(H_sel, eigenvalues, eigenvectors)
+        else
+            call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
+        end if
+        deallocate(H_sel)
+    else 
+        if (Nfirst_davidson .gt. n_sel) Nfirst_davidson = n_sel
+        call system_clock(count_rate=count_rate_dav, count_max=count_max_dav)
+        call system_clock(t_start_dav)
+        call cpu_time(start_time_dav)
+        allocate(eigenvalues(Nfirst_davidson), eigenvectors(n_sel, Nfirst_davidson))
+        write(*,'(1A,I4)') ' >>>>> Using Davidson eigensolver. Roots requested: ', Nfirst_davidson
+        call jacobi_davidson_eigensolver(n_sel, Nfirst_davidson, &
+            n_sparse_dav, sparse_m_dav, sparse_n_dav, H_sparse, &
+            davidson_tol, davidson_max_iter, eigenvalues, eigenvectors)
+        write(*,'(1A)') ' Davidson eigensolver finished.'
+        deallocate(H_sparse, sparse_m_dav, sparse_n_dav)
 
-end if
+        call cpu_time(end_time_dav)
+        call system_clock(t_end_dav)
+        elapsed_time_dav = real(t_end_dav - t_start_dav) / real(count_rate_dav)
+        write(*,'(1A, 1F12.2, 1A)') " DAV CPU time:     ", end_time_dav - start_time_dav, " seconds"
+        write(*,'(1A, 1F12.2, 1A)') " DAV elapsed time: ", elapsed_time_dav, " seconds"
+    end if
+
+end if !conditional to check list
+
 !==========================================================================
 ! STEP 7: Final output — mirror VCI format exactly
 !==========================================================================
+to_write_output = n_sel
+if (use_davidson) to_write_output = Nfirst_davidson
 
 if(check_list == 0) then
 
@@ -2072,8 +2317,7 @@ if(check_list == 0) then
         write(101,'(99999I5)') sel_list(i), vec_combinations(sel_list(i),:)
     end do
     write(101,*)
-
-    if (n_sel <= N_states) then
+    if (to_write_output <= N_states) then
         write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
         write(*,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
             '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
@@ -2083,7 +2327,7 @@ if(check_list == 0) then
             '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
         write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
 
-        do i = 1, min(N_states, n_sel)
+        do i = 1, min(N_states, to_write_output)
             values  = 0.d0
             indices = 0
             call top_three_components(eigenvectors(:,i), n_sel, values, indices)
@@ -2109,10 +2353,10 @@ if(check_list == 0) then
         write(101,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
         write(101,'(1A)') '-----------------------------------------'
 
-        do i = 1, min(N_states, n_sel)
+        do i = 1, min(N_states, to_write_output)
             values  = 0.d0
             indices = 0
-            call top_three_components(eigenvectors(:,i), min(N_states,n_sel), values, indices)
+            call top_three_components(eigenvectors(:,i), min(N_states,to_write_output), values, indices)
             if (i < 10) then
                 write(*,'(1F19.4, 1F22.4)') &
                     eigenvalues(i)/cm_to_hartree, &
@@ -2154,7 +2398,7 @@ if (check_list == 1) then
     end do
     write(101,*)
 
-    if (n_sel <= N_states) then
+    if (to_write_output <= N_states) then
         write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
         write(*,'(1A19, 1A22, 1A14, 6A12)') 'E (cm-1)', 'E - ZPE', &
             '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
@@ -2164,7 +2408,7 @@ if (check_list == 1) then
             '              ', 'Coeff A', 'Coeff B', 'Coeff C', 'State A', 'State B', 'State C'
         write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
 
-        do i = 1, min(N_states, n_sel)
+        do i = 1, min(N_states, to_write_output)
             values  = 0.d0
             indices = 0
             call top_three_components(eigenvectors(:,i), n_sel, values, indices)
@@ -2190,10 +2434,10 @@ if (check_list == 1) then
         write(101,'(1A19, 1A22)') 'E (cm-1)', 'E - ZPE'
         write(101,'(1A)') '-----------------------------------------'
 
-        do i = 1, min(N_states, n_sel)
+        do i = 1, min(N_states, to_write_output)
             values  = 0.d0
             indices = 0
-            call top_three_components(eigenvectors(:,i), min(N_states,n_sel), values, indices)
+            call top_three_components(eigenvectors(:,i), min(N_states,to_write_output), values, indices)
             if (i < 10) then
                 write(*,'(1F19.4, 1F22.4)') &
                     eigenvalues(i)/cm_to_hartree, &
@@ -2215,260 +2459,249 @@ end if
 !==========================================================================
 
 if (check_list == 0) then
-    write(*,*) ' -Calculating SCI transition dipoles'
+    write(*,*) ' -Calculating SCI transition dipoles (onthefly, no full D matrix)'
 
-    allocate(dipole_sel(n_sel, n_sel, 3))
-    dipole_sel = 0.d0
-
-    !$OMP PARALLEL DO DEFAULT(NONE) &
-    !$OMP& SHARED(n_sel, sel_list, vec_combinations, N_modes, max_quanta, &
-    !$OMP&        modal_int, dipole_derivatives, second_dipole_derivatives, &
-    !$OMP&        dipole_vec, final_index_dipole, dipole_sel) &
-    !$OMP& PRIVATE(i, j, m, n, ii, jj, kk, pp, vm, vn, n_diff, &
-    !$OMP&         dip_local, ovlp_loc, prefix_prod, suffix_prod_loc, &
-    !$OMP&         prod_except_i, prod_all, step_prod_loc) &
-    !$OMP& SCHEDULE(dynamic, 64)
-    do i = 1, n_sel
-        do j = i, n_sel
-            m  = sel_list(i) ; n = sel_list(j)
-            vm(1:N_modes) = vec_combinations(m, 1:N_modes)
-            vn(1:N_modes) = vec_combinations(n, 1:N_modes)
-
-            n_diff = 0
-            do ii = 1, N_modes
-                if (vm(ii) /= vn(ii)) then
-                    n_diff = n_diff + 1
-                    if (n_diff > 2) exit
-                end if
-            end do
-            if (n_diff > 2) cycle
-
-            do ii = 1, N_modes
-                ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
-            end do
-            prefix_prod(0) = 1.0d0
-            do ii = 1, N_modes
-                prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
-            end do
-            prod_all = prefix_prod(N_modes)
-            suffix_prod_loc(N_modes+1) = 1.0d0
-            do ii = N_modes, 1, -1
-                suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
-            end do
-            do ii = 1, N_modes
-                prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
-            end do
-
-            dip_local = 0.d0
-
-            ! --- One-mode dipole terms ---
-            if (n_diff <= 1) then
-                do ii = 1, N_modes
-                    if (abs(prod_except_i(ii)) < 1.d-30) cycle
-                    dip_local(1:3) = dip_local(1:3) + ( &
-                        modal_int(ii, vm(ii), vn(ii), 1) &
-                        * dipole_derivatives(ii, 1:3) &
-                    + modal_int(ii, vm(ii), vn(ii), 2) &
-                        * second_dipole_derivatives(ii,ii,1:3) &
-                        ) * prod_except_i(ii)
-                end do
-            end if
-
-            ! --- Two-mode dipole terms (i /= j) ---
-            if (n_diff <= 2) then
-                do kk = 1, N_modes*(N_modes+1)/2
-                    if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
-                    if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
-                        abs(dipole_vec(kk,2)) < 1.d-30 .and. &
-                        abs(dipole_vec(kk,3)) < 1.d-30) cycle
-                    ii = final_index_dipole(kk,1)
-                    jj = final_index_dipole(kk,2)
-                    if (abs(ovlp_loc(ii)) < 1.d-300 .or. &
-                        abs(ovlp_loc(jj)) < 1.d-300) then
-                        step_prod_loc = 1.0d0
-                        do pp = 1, N_modes
-                            if (pp /= ii .and. pp /= jj) &
-                                step_prod_loc = step_prod_loc * ovlp_loc(pp)
-                        end do
-                    else
-                        step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
-                    end if
-                    if (abs(step_prod_loc) < 1.d-30) cycle
-                    step_prod_loc = step_prod_loc &
-                        * modal_int(ii, vm(ii), vn(ii), 1) &
-                        * modal_int(jj, vm(jj), vn(jj), 1)
-                    dip_local(1:3) = dip_local(1:3) &
-                        + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
-                end do
-            end if
-
-            dipole_sel(i,j,1:3) = dip_local(1:3)
-            dipole_sel(j,i,1:3) = dip_local(1:3)
-
-        end do
+    !----------------------------------------------------------------------
+    ! 8a: Build dipole-specific sparse list (n_diff <= 2) from the pair
+    !     list already built for H in STEP 6
+    !----------------------------------------------------------------------
+    n_sparse_dip = 0
+    do idx = 1, n_sparse
+        if (sparse_ndiff(idx) <= 2) n_sparse_dip = n_sparse_dip + 1
     end do
-    !$OMP END PARALLEL DO
 
-    ! Count transitions below 4500 cm-1 above ZPE
+    allocate(sparse_m_dip(n_sparse_dip), sparse_n_dip(n_sparse_dip), sparse_ndiff_dip(n_sparse_dip))
+    n_sparse_dip = 0
+    do idx = 1, n_sparse
+        if (sparse_ndiff(idx) <= 2) then
+            n_sparse_dip = n_sparse_dip + 1
+            sparse_m_dip(n_sparse_dip) = sparse_m(idx)   ! LOCAL indices (1..n_sel)
+            sparse_n_dip(n_sparse_dip) = sparse_n(idx)   ! LOCAL indices (1..n_sel)
+            sparse_ndiff_dip(n_sparse_dip) = sparse_ndiff(idx)
+        end if
+    end do
+    write(*,'(A,I0,A)') ' Dipole-specific pair list (SCI/CI space) contains ', n_sparse_dip, ' elements.'
+
+    !----------------------------------------------------------------------
+    ! 8b: On-the-fly D*v0 accumulation
+    !----------------------------------------------------------------------
+    allocate(d_x(n_sel), d_y(n_sel), d_z(n_sel))
+    d_x = 0.d0; d_y = 0.d0; d_z = 0.d0
+
+    do idx = 1, n_sparse_dip
+        i     = sparse_m_dip(idx)          
+        j     = sparse_n_dip(idx)          
+        n_diff = sparse_ndiff_dip(idx)
+        m     = sel_list(i)               
+        n_loc = sel_list(j)                
+        vm(1:N_modes) = vec_combinations(m,     1:N_modes)
+        vn(1:N_modes) = vec_combinations(n_loc, 1:N_modes)
+
+        do ii = 1, N_modes
+            ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
+        end do
+        prefix_prod(0) = 1.0d0
+        do ii = 1, N_modes
+            prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
+        end do
+        prod_all = prefix_prod(N_modes)
+        suffix_prod_loc(N_modes+1) = 1.0d0
+        do ii = N_modes, 1, -1
+            suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
+        end do
+        do ii = 1, N_modes
+            prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
+        end do
+
+        dip_local = 0.d0
+
+        if (n_diff <= 1) then
+            do ii = 1, N_modes
+                if (abs(prod_except_i(ii)) < 1.d-30) cycle
+                dip_local(1:3) = dip_local(1:3) + ( &
+                    modal_int(ii, vm(ii), vn(ii), 1) * dipole_derivatives(ii, 1:3) &
+                  + modal_int(ii, vm(ii), vn(ii), 2) * second_dipole_derivatives(ii,ii,1:3) &
+                    ) * prod_except_i(ii)
+            end do
+        end if
+
+        do kk = 1, N_modes*(N_modes+1)/2
+            if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
+            if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
+                abs(dipole_vec(kk,2)) < 1.d-30 .and. &
+                abs(dipole_vec(kk,3)) < 1.d-30) cycle
+            ii = final_index_dipole(kk,1)
+            jj = final_index_dipole(kk,2)
+            if (abs(ovlp_loc(ii)) < 1.d-300 .or. abs(ovlp_loc(jj)) < 1.d-300) then
+                step_prod_loc = 1.0d0
+                do pp = 1, N_modes
+                    if (pp /= ii .and. pp /= jj) step_prod_loc = step_prod_loc * ovlp_loc(pp)
+                end do
+            else
+                step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
+            end if
+            if (abs(step_prod_loc) < 1.d-30) cycle
+            step_prod_loc = step_prod_loc &
+                * modal_int(ii, vm(ii), vn(ii), 1) * modal_int(jj, vm(jj), vn(jj), 1)
+            dip_local(1:3) = dip_local(1:3) + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
+        end do
+
+        d_x(i) = d_x(i) + dip_local(1) * eigenvectors(j,1)
+        d_y(i) = d_y(i) + dip_local(2) * eigenvectors(j,1)
+        d_z(i) = d_z(i) + dip_local(3) * eigenvectors(j,1)
+        if (i /= j) then
+            d_x(j) = d_x(j) + dip_local(1) * eigenvectors(i,1)
+            d_y(j) = d_y(j) + dip_local(2) * eigenvectors(i,1)
+            d_z(j) = d_z(j) + dip_local(3) * eigenvectors(i,1)
+        end if
+    end do
+
+    write(*,*) 'SCI dipole accumulation finished.'
+
     number_to_print_int = 0
-    do i = 1, min(N_states, n_sel) - 1
-        if ((eigenvalues(i+1)-eigenvalues(1))/cm_to_hartree < 4500.d0) &
+    do i = 1, min(N_states, to_write_output) - 1
+        if ((eigenvalues(i+1) - eigenvalues(1))/cm_to_hartree < max_freq) &
             number_to_print_int = number_to_print_int + 1
     end do
-    if (number_to_print_int >= n_sel) number_to_print_int = n_sel - 1
+    if (number_to_print_int < 1) number_to_print_int = 1
+    if (number_to_print_int >= to_write_output) number_to_print_int = to_write_output - 1
 
-    allocate(dipole_final(max(1,number_to_print_int), 3))
-    allocate(intensity(max(1,number_to_print_int)))
-    allocate(tmp_vec(n_sel))
-    dipole_final = 0.d0
-    intensity    = 0.d0
-
-    do ii = 1, 3
-        call dgemv('N', n_sel, n_sel, 1.d0, dipole_sel(1,1,ii), n_sel, &
-                eigenvectors(1,1), 1, 0.d0, tmp_vec, 1)
-        !$OMP PARALLEL DO PRIVATE(i) SCHEDULE(static)
-        do i = 1, number_to_print_int
-            dipole_final(i,ii) = ddot(n_sel, eigenvectors(1,i+1), 1, tmp_vec, 1)
-        end do
-        !$OMP END PARALLEL DO
-    end do
+    allocate(dipole_final(number_to_print_int, 3))
+    allocate(intensity(number_to_print_int))
 
     do i = 1, number_to_print_int
+        dipole_final(i,1) = ddot(n_sel, eigenvectors(1,i+1), 1, d_x, 1)
+        dipole_final(i,2) = ddot(n_sel, eigenvectors(1,i+1), 1, d_y, 1)
+        dipole_final(i,3) = ddot(n_sel, eigenvectors(1,i+1), 1, d_z, 1)
         intensity(i) = sum(dipole_final(i,:)**2)
     end do
 
+    deallocate(d_x, d_y, d_z)
+    deallocate(sparse_m_dip, sparse_n_dip, sparse_ndiff_dip)
 end if
 
 
 if (check_list == 1) then
-    write(*,*) ' -Calculating SCI transition dipoles'
+    write(*,*) ' -Calculating SCI transition dipoles (onthefly, no full D matrix)'
 
-    allocate(dipole_sel(n_sel, n_sel, 3))
-    dipole_sel = 0.d0
-
-    !$OMP PARALLEL DO DEFAULT(NONE) &
-    !$OMP& SHARED(n_sel, sel_list, vec_combinations2, N_modes, max_quanta, &
-    !$OMP&        modal_int, dipole_derivatives, second_dipole_derivatives, &
-    !$OMP&        dipole_vec, final_index_dipole, dipole_sel) &
-    !$OMP& PRIVATE(i, j, m, n, ii, jj, kk, pp, vm, vn, n_diff, &
-    !$OMP&         dip_local, ovlp_loc, prefix_prod, suffix_prod_loc, &
-    !$OMP&         prod_except_i, prod_all, step_prod_loc) &
-    !$OMP& SCHEDULE(dynamic, 64)
-    do i = 1, n_sel
-        do j = i, n_sel
-            m  = sel_list(i) ; n = sel_list(j)
-            vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
-            vn(1:N_modes) = vec_combinations2(n, 1:N_modes)
-
-            n_diff = 0
-            do ii = 1, N_modes
-                if (vm(ii) /= vn(ii)) then
-                    n_diff = n_diff + 1
-                    if (n_diff > 2) exit
-                end if
-            end do
-            if (n_diff > 2) cycle
-
-            do ii = 1, N_modes
-                ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
-            end do
-            prefix_prod(0) = 1.0d0
-            do ii = 1, N_modes
-                prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
-            end do
-            prod_all = prefix_prod(N_modes)
-            suffix_prod_loc(N_modes+1) = 1.0d0
-            do ii = N_modes, 1, -1
-                suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
-            end do
-            do ii = 1, N_modes
-                prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
-            end do
-
-            dip_local = 0.d0
-
-            ! --- One-mode dipole terms ---
-            if (n_diff <= 1) then
-                do ii = 1, N_modes
-                    if (abs(prod_except_i(ii)) < 1.d-30) cycle
-                    dip_local(1:3) = dip_local(1:3) + ( &
-                        modal_int(ii, vm(ii), vn(ii), 1) &
-                        * dipole_derivatives(ii, 1:3) &
-                    + modal_int(ii, vm(ii), vn(ii), 2) &
-                        * second_dipole_derivatives(ii,ii,1:3) &
-                        ) * prod_except_i(ii)
-                end do
-            end if
-
-            ! --- Two-mode dipole terms (i /= j) ---
-            if (n_diff <= 2) then
-                do kk = 1, N_modes*(N_modes+1)/2
-                    if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
-                    if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
-                        abs(dipole_vec(kk,2)) < 1.d-30 .and. &
-                        abs(dipole_vec(kk,3)) < 1.d-30) cycle
-                    ii = final_index_dipole(kk,1)
-                    jj = final_index_dipole(kk,2)
-                    if (abs(ovlp_loc(ii)) < 1.d-300 .or. &
-                        abs(ovlp_loc(jj)) < 1.d-300) then
-                        step_prod_loc = 1.0d0
-                        do pp = 1, N_modes
-                            if (pp /= ii .and. pp /= jj) &
-                                step_prod_loc = step_prod_loc * ovlp_loc(pp)
-                        end do
-                    else
-                        step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
-                    end if
-                    if (abs(step_prod_loc) < 1.d-30) cycle
-                    step_prod_loc = step_prod_loc &
-                        * modal_int(ii, vm(ii), vn(ii), 1) &
-                        * modal_int(jj, vm(jj), vn(jj), 1)
-                    dip_local(1:3) = dip_local(1:3) &
-                        + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
-                end do
-            end if
-
-            dipole_sel(i,j,1:3) = dip_local(1:3)
-            dipole_sel(j,i,1:3) = dip_local(1:3)
-
-        end do
+    !----------------------------------------------------------------------
+    ! 8a: Build dipole-specific sparse list (n_diff <= 2) from the pair
+    !     list already built for H in STEP 6
+    !----------------------------------------------------------------------
+    n_sparse_dip = 0
+    do idx = 1, n_sparse
+        if (sparse_ndiff(idx) <= 2) n_sparse_dip = n_sparse_dip + 1
     end do
-    !$OMP END PARALLEL DO
 
-    ! Count transitions below 4500 cm-1 above ZPE
+    allocate(sparse_m_dip(n_sparse_dip), sparse_n_dip(n_sparse_dip), sparse_ndiff_dip(n_sparse_dip))
+    n_sparse_dip = 0
+    do idx = 1, n_sparse
+        if (sparse_ndiff(idx) <= 2) then
+            n_sparse_dip = n_sparse_dip + 1
+            sparse_m_dip(n_sparse_dip) = sparse_m(idx)   ! LOCAL indices (1..n_sel)
+            sparse_n_dip(n_sparse_dip) = sparse_n(idx)   ! LOCAL indices (1..n_sel)
+            sparse_ndiff_dip(n_sparse_dip) = sparse_ndiff(idx)
+        end if
+    end do
+    write(*,'(A,I0,A)') ' Dipole-specific pair list (SCI/LIST space) contains ', n_sparse_dip, ' elements.'
+
+    !----------------------------------------------------------------------
+    ! 8b: On-the-fly D*v0 accumulation
+    !----------------------------------------------------------------------
+    allocate(d_x(n_sel), d_y(n_sel), d_z(n_sel))
+    d_x = 0.d0; d_y = 0.d0; d_z = 0.d0
+
+    do idx = 1, n_sparse_dip
+        i     = sparse_m_dip(idx)          
+        j     = sparse_n_dip(idx)          
+        n_diff = sparse_ndiff_dip(idx)
+        m     = sel_list(i)                
+        n_loc = sel_list(j)                
+        vm(1:N_modes) = vec_combinations2(m,     1:N_modes)
+        vn(1:N_modes) = vec_combinations2(n_loc, 1:N_modes)
+
+        do ii = 1, N_modes
+            ovlp_loc(ii) = modal_int(ii, vm(ii), vn(ii), 0)
+        end do
+        prefix_prod(0) = 1.0d0
+        do ii = 1, N_modes
+            prefix_prod(ii) = prefix_prod(ii-1) * ovlp_loc(ii)
+        end do
+        prod_all = prefix_prod(N_modes)
+        suffix_prod_loc(N_modes+1) = 1.0d0
+        do ii = N_modes, 1, -1
+            suffix_prod_loc(ii) = suffix_prod_loc(ii+1) * ovlp_loc(ii)
+        end do
+        do ii = 1, N_modes
+            prod_except_i(ii) = prefix_prod(ii-1) * suffix_prod_loc(ii+1)
+        end do
+
+        dip_local = 0.d0
+
+        if (n_diff <= 1) then
+            do ii = 1, N_modes
+                if (abs(prod_except_i(ii)) < 1.d-30) cycle
+                dip_local(1:3) = dip_local(1:3) + ( &
+                    modal_int(ii, vm(ii), vn(ii), 1) * dipole_derivatives(ii, 1:3) &
+                  + modal_int(ii, vm(ii), vn(ii), 2) * second_dipole_derivatives(ii,ii,1:3) &
+                    ) * prod_except_i(ii)
+            end do
+        end if
+
+        do kk = 1, N_modes*(N_modes+1)/2
+            if (final_index_dipole(kk,1) == final_index_dipole(kk,2)) cycle
+            if (abs(dipole_vec(kk,1)) < 1.d-30 .and. &
+                abs(dipole_vec(kk,2)) < 1.d-30 .and. &
+                abs(dipole_vec(kk,3)) < 1.d-30) cycle
+            ii = final_index_dipole(kk,1)
+            jj = final_index_dipole(kk,2)
+            if (abs(ovlp_loc(ii)) < 1.d-300 .or. abs(ovlp_loc(jj)) < 1.d-300) then
+                step_prod_loc = 1.0d0
+                do pp = 1, N_modes
+                    if (pp /= ii .and. pp /= jj) step_prod_loc = step_prod_loc * ovlp_loc(pp)
+                end do
+            else
+                step_prod_loc = prod_all / (ovlp_loc(ii) * ovlp_loc(jj))
+            end if
+            if (abs(step_prod_loc) < 1.d-30) cycle
+            step_prod_loc = step_prod_loc &
+                * modal_int(ii, vm(ii), vn(ii), 1) * modal_int(jj, vm(jj), vn(jj), 1)
+            dip_local(1:3) = dip_local(1:3) + dipole_vec(kk,1:3) * step_prod_loc * 2.0d0
+        end do
+
+        d_x(i) = d_x(i) + dip_local(1) * eigenvectors(j,1)
+        d_y(i) = d_y(i) + dip_local(2) * eigenvectors(j,1)
+        d_z(i) = d_z(i) + dip_local(3) * eigenvectors(j,1)
+        if (i /= j) then
+            d_x(j) = d_x(j) + dip_local(1) * eigenvectors(i,1)
+            d_y(j) = d_y(j) + dip_local(2) * eigenvectors(i,1)
+            d_z(j) = d_z(j) + dip_local(3) * eigenvectors(i,1)
+        end if
+    end do
+
+    write(*,*) 'SCI dipole accumulation finished.'
+
     number_to_print_int = 0
-    do i = 1, min(N_states, n_sel) - 1
-        if ((eigenvalues(i+1)-eigenvalues(1))/cm_to_hartree < 4500.d0) &
+    do i = 1, min(N_states, to_write_output) - 1
+        if ((eigenvalues(i+1) - eigenvalues(1))/cm_to_hartree < max_freq) &
             number_to_print_int = number_to_print_int + 1
     end do
-    if (number_to_print_int >= n_sel) number_to_print_int = n_sel - 1
+    if (number_to_print_int < 1) number_to_print_int = 1
+    if (number_to_print_int >= to_write_output) number_to_print_int = to_write_output - 1
 
-    allocate(dipole_final(max(1,number_to_print_int), 3))
-    allocate(intensity(max(1,number_to_print_int)))
-    allocate(tmp_vec(n_sel))
-    dipole_final = 0.d0
-    intensity    = 0.d0
-
-    do ii = 1, 3
-        call dgemv('N', n_sel, n_sel, 1.d0, dipole_sel(1,1,ii), n_sel, &
-                eigenvectors(1,1), 1, 0.d0, tmp_vec, 1)
-        !$OMP PARALLEL DO PRIVATE(i) SCHEDULE(static)
-        do i = 1, number_to_print_int
-            dipole_final(i,ii) = ddot(n_sel, eigenvectors(1,i+1), 1, tmp_vec, 1)
-        end do
-        !$OMP END PARALLEL DO
-    end do
+    allocate(dipole_final(number_to_print_int, 3))
+    allocate(intensity(number_to_print_int))
 
     do i = 1, number_to_print_int
+        dipole_final(i,1) = ddot(n_sel, eigenvectors(1,i+1), 1, d_x, 1)
+        dipole_final(i,2) = ddot(n_sel, eigenvectors(1,i+1), 1, d_y, 1)
+        dipole_final(i,3) = ddot(n_sel, eigenvectors(1,i+1), 1, d_z, 1)
         intensity(i) = sum(dipole_final(i,:)**2)
     end do
 
+    deallocate(d_x, d_y, d_z)
+    deallocate(sparse_m_dip, sparse_n_dip, sparse_ndiff_dip)
 end if
-
-
-
-
-
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FINAL
@@ -2481,6 +2714,22 @@ do i = 1, number_to_print_int
         100.d0*intensity(i)/sqrt(sum(intensity(1:number_to_print_int)**2))
 end do
 
+!---------------------------------------------------------------------
+! Transition dipoles + intensities (km/mol) — SCI analogue of the
+! unit-300 output in vibrational_ci
+!---------------------------------------------------------------------
+open(unit=300, file='dipoles_intensity_sci.txt', status='replace')
+write(300,'(A)') 'Transition dipoles and intensities (km/mol) - Selected VCI'
+write(300,'(A)') 'State  Energy (cm-1)   Dip_x (a.u.)   Dip_y (a.u.)   Dip_z (a.u.)   Intensity (km/mol)'
+do i = 1, number_to_print_int
+    write(300,'(I6,F18.6,3F14.8,F14.4)') i+1, &
+        (eigenvalues(i+1) - eigenvalues(1))/cm_to_hartree, &
+        dipole_final(i,1), dipole_final(i,2), dipole_final(i,3), &
+        intensity(i) * 974.88d0 * 2.d0
+end do
+close(300)
+!---------------------------------------------------------------------
+
 call cpu_time(end_time)
 call system_clock(t_end)
 elapsed_time = real(t_end - t_start) / real(count_rate_val)
@@ -2490,12 +2739,12 @@ write(*,'(A,F12.2,A)') ' SCI elapsed time: ', elapsed_time,          ' seconds'
 !==========================================================================
 ! CLEANUP
 !==========================================================================
-deallocate(modal_int)
-deallocate(dipole_vec, final_index_dipole)
-deallocate(is_ref, is_selected)
-deallocate(ref_list, sel_list)
-deallocate(eigenvalues, eigenvectors)
-deallocate(dipole_sel, dipole_final, intensity, tmp_vec)
+! deallocate(modal_int)
+! deallocate(dipole_vec, final_index_dipole)
+! deallocate(is_ref, is_selected)
+! deallocate(ref_list, sel_list)
+! deallocate(eigenvalues, eigenvectors)
+! deallocate(dipole_sel, dipole_final, intensity, tmp_vec)
 
 end subroutine selected_vibrational_ci
 
