@@ -72,8 +72,8 @@ Happy exploring, and may your vibrations always be harmonic!
 
 **July-Aug 2026**
 
-* Added iterative diagonalization.
-* Added intensities in km/mol.
+* Added iterative diagonalization for full VCI.
+* Added intensities in km/mol for full VCI.
 * Added a simple water-molecule test case.
 * Added VCI@HO.
 
