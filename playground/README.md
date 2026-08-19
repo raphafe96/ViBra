@@ -50,3 +50,30 @@ To explore a large VCI space using a harmonic basis and the memory-efficient Dav
 Then configure your standard `input_vscf.txt` with a large NQUANT and MAXSCI set to 0 for a full VCI. Run ViBra and the calculation will proceed in the VCI@HO framework, diagonalizing the Hamiltonian iteratively and saving significant memory.
 
 Happy exploring, and may your vibrations always be harmonic!
+
+## Changelog
+
+**19/08/2026**
+
+* Updated the `selected_vibrational_ci` subroutine in `vci.f90`.
+* Removed obsolete and unused variables.
+* Added intensities in km/mol.
+* Implemented iterative diagonalization.
+* Improved sparse pair-list construction for semi-quartic force fields (`ndif <= 3`).
+
+**18/08/2026**
+
+* Replaced `qsort_diag` with `qsort_diag2` in `jacobi.f90`.
+* Introduced a new sorting algorithm.
+
+**18/08/2026**
+
+* Started documenting the changelog here. For previous changes, check code backups.
+
+**2026**
+
+* Added iterative diagonalization.
+* Added intensities in km/mol.
+* Added a simple water-molecule test case.
+* Added VCI@HO.
+
