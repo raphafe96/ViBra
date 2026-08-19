@@ -51,9 +51,6 @@ Then configure your standard `input_vscf.txt` with a large NQUANT and MAXSCI set
 
 Happy exploring, and may your vibrations always be harmonic!
 
-## Changelog
-
-**19/08/2026**
 
 ## Changelog
 
