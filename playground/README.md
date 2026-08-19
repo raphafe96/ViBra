@@ -55,11 +55,16 @@ Happy exploring, and may your vibrations always be harmonic!
 
 **19/08/2026**
 
-* Updated the `selected_vibrational_ci` subroutine in `vci.f90` with the following:
-    Removed obsolete and unused variables.
-    Added intensities in km/mol.
-    Implemented iterative diagonalization.
-    Improved sparse pair-list construction for ORCA semi-quartic force fields (`ndif <= 3`).
+## Changelog
+
+**19/08/2026**
+
+* Updated the `selected_vibrational_ci` subroutine in `vci.f90`:
+
+  * Removed obsolete and unused variables.
+  * Added intensities in km/mol.
+  * Implemented iterative diagonalization.
+  * Improved sparse pair-list construction for ORCA semi-quartic force fields (`ndif <= 3`).
 
 **18/08/2026**
 
@@ -68,12 +73,13 @@ Happy exploring, and may your vibrations always be harmonic!
 
 **18/08/2026**
 
-* Started documenting the changelog here. For previous changes, check code backups.
+* Started documenting the changelog here. For previous changes, check the code backups.
 
-**July-Aug 2026**
+**July–August 2026**
 
 * Added iterative diagonalization for full VCI.
 * Added intensities in km/mol for full VCI.
 * Added a simple water-molecule test case.
 * Added VCI@HO.
+
 
