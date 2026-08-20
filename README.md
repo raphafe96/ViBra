@@ -108,7 +108,7 @@ To generate the required `.vpt2` file for ViBra, you need to run two sequential 
 
 This will produce a `basename.vpt2` file containing harmonic frequencies, normal modes, cubic and quartic force constants, and first- and second-order dipole derivatives — all required by ViBra.
 
-**Note:** These calculations were performed and tested using **ORCA 6.1**. For more details, see:
+**Note:** ORCA is an external software. For more details, see:
 
 > Neese, F. *et al.* ORCA – An Ab Initio, DFT and Semiempirical SCF-MO Package, Version 6.1. Max-Planck-Institut für Kohlenforschung, Mülheim an der Ruhr, 2025. Available at: https://www.faccts.de/orca
 
