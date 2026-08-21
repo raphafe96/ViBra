@@ -7,7 +7,7 @@ This is the ViBra playground, a sandbox for new, experimental, and evolving feat
 The playground currently introduces the following new and experimental features:
 
 - **VCI@HO**: Possibility to run VCI using a harmonic oscillator basis for all VCI routines, including Full VCI, Selected VCI (S-VCI), and Symmetry-Adapted VCI (SA-VCI). This provides an alternative to the standard VCI@VSCF approach and can serve as a useful reference.
-- **On-the-fly diagonalization**: Option to run an iterative Davidson diagonalizer when a full VCI or selected VCI calculation is requested, avoiding the memory bottleneck of storing the full dense Hamiltonian matrix. Not yet implemented for the symmetry adapted part.
+- **Iterative diagonalization**: Option to run an iterative Davidson diagonalizer when a full VCI or selected VCI calculation is requested, avoiding the memory bottleneck of storing the full dense Hamiltonian matrix. Not yet implemented for the symmetry adapted part.
 - **Built-in water molecule test**: An option to automatically run a water molecule test case using VCI@VSCF. This allows you to compare results with Crystal23 output and verify that everything is running correctly (you must explicitly set the RUNSCF to 1).
 - **Extended intensity output**: For full and selected VCI calculations, frequencies are now also saved in km/mol alongside the transition dipoles in a new file called `dipoles_intensity_vci.txt`, providing richer data for spectral analysis.
 
