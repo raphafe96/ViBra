@@ -70,7 +70,7 @@ Happy exploring, and may your vibrations always be harmonic!
 
 **24/08/2026**
 
-* Added the new `read_exclude` subroutine to `symmetry.f90` and updated `main_vscf.f90`:
+* Added the new `read_exclude` subroutine to `read_input.f90` and updated `main_vscf.f90`:
 
   * Added the `EXCLUD` keyword to `extra_input.txt`, allowing modes to be excluded from the VSCF/VCI calculation automatically (`auto`, by frequency cutoff) or explicitly (`spec`, by vibrational mode index).
   * Not yet compatible with Symmetry-Adapted VCI (`symmetry.f90` does not account for excluded modes).
