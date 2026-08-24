@@ -140,6 +140,7 @@ program main_vscf
   real*8, allocatable :: second_dipole_derivatives_to_exclude(:,:,:)
   real*8, allocatable :: HO_freq_to_exclude(:)
   logical :: exclude_mode
+  real*8 :: energy_excluded
 
   !===========================================================================
   ! Timing
@@ -151,23 +152,19 @@ program main_vscf
   !===========================================================================
   ! Banner
   !===========================================================================
+  
+  write(*,'(A)') '========================================'
+  write(*,'(A)') '                ViBra'
   write(*,'(A)') '========================================'
   write(*,'(A)') ' Centro Brasileiro de Pesquisas Fisicas '
   write(*,'(A)') '       CBPF - Rio de Janeiro, Brasil'
-  write(*,'(A)') '========================================'
-  write(*,'(A)') '                VCI@VSCF'
   write(*,'(A)') '----------------------------------------'
-  write(*,'(A)') '  Vibrational Configuration Interaction'
-  write(*,'(A)') '  at'
-  write(*,'(A)') '  Vibrational Self-Consistent Field'
-  write(*,'(A)') '----------------------------------------'
-  write(*,'(A)') '========================================'
   write(*,*)
 
   !===========================================================================
   ! Read input                                                        
   !===========================================================================
-  open(101, file='vscf.out')
+ 
   input_file = 'input_vscf.txt'
   test = 0 !this will compare the results with implementation from CRYSTAL for H2O found on their webpage (tutorials) https://tutorials.crystalsolutions.eu/tutorial.html?td=anharmonicity&tf=anharm!
   sci_mode = 'auto'
@@ -255,7 +252,15 @@ program main_vscf
   number_to_exclude = 0
   
   call read_exclude(N_modes, HO_freq, exclude_mode, modes_to_exclude, number_to_exclude)
-
+  open(101, file='vscf.out')
+  write(101,'(A)') '========================================'
+  write(101,'(A)') '                ViBra'
+  write(101,'(A)') '========================================'
+  write(101,'(A)') ' Centro Brasileiro de Pesquisas Fisicas '
+  write(101,'(A)') '       CBPF - Rio de Janeiro, Brasil'
+  write(101,'(A)') '----------------------------------------'
+  write(101,*)
+  
   if(exclude_mode) then
     write(*,*) '------------------------'
     write(*,*) '    EXCLUDING MODES'
@@ -274,6 +279,7 @@ program main_vscf
               HO_freq_to_exclude(N_modes_new))
 
     list_new_modes = 0
+    energy_excluded = 0.d0
     k = 0
     do i = 1, N_modes
         if (.not. any(modes_to_exclude(1:number_to_exclude) == i)) then
@@ -282,6 +288,7 @@ program main_vscf
         else
           write(*,'(1A, 1I4, 1A, 1F12.3)') 'Mode excluded (index before exclusion): ', i, '    HO freq. (cm-1): ', HO_freq(i)  
           write(101,'(1A, 1I4, 1A, 1F12.3)') 'Mode excluded (index before exclusion): ', i, '    HO freq. (cm-1): ', HO_freq(i)  
+          energy_excluded = energy_excluded + HO_freq(i)
         end if
     end do
 
@@ -347,6 +354,12 @@ program main_vscf
               HO_freq_to_exclude, &
               modes_to_exclude, &
               list_new_modes)
+
+  write(*,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
+  write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
+
+  write(101,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
+  write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
   end if !this is the exclude mode if
 
   else !this is the test water if
@@ -930,10 +943,16 @@ end if
     warning = 0
 
 
-  close(101)
-  close(200)
   if(exclude_mode) write(*,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
+  if(exclude_mode) write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
+
+  if(exclude_mode) write(101,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
+  if(exclude_mode) write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
   write(*,'(A)')
   write(*,'(A)') " <:> Normal termination."
+
+  
+  close(101)
+  close(200)
 
 end program main_vscf
