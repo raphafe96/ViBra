@@ -260,7 +260,7 @@ program main_vscf
   write(101,'(A)') '       CBPF - Rio de Janeiro, Brasil'
   write(101,'(A)') '----------------------------------------'
   write(101,*)
-  
+
   if(exclude_mode) then
     write(*,*) '------------------------'
     write(*,*) '    EXCLUDING MODES'
@@ -356,10 +356,10 @@ program main_vscf
               list_new_modes)
 
   write(*,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
-  write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
+  write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes (1/2 times sum of excluded frequencies, cm-1): ', energy_excluded/2
 
   write(101,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
-  write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
+  write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes (1/2 times sum of excluded frequencies, cm-1): ', energy_excluded/2
   end if !this is the exclude mode if
 
   else !this is the test water if
@@ -944,10 +944,10 @@ end if
 
 
   if(exclude_mode) write(*,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
-  if(exclude_mode) write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
+  if(exclude_mode) write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes (1/2 times sum of excluded frequencies, cm-1): ', energy_excluded/2
 
   if(exclude_mode) write(101,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
-  if(exclude_mode) write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes: ', energy_excluded/2
+  if(exclude_mode) write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes (1/2 times sum of excluded frequencies, cm-1): ', energy_excluded/2
   write(*,'(A)')
   write(*,'(A)') " <:> Normal termination."
 
