@@ -43,6 +43,13 @@ program main_vscf
   !I tested for ethylene and water and it is pretty much the same value as reported in: J Chem Phys. 2007 May 28;126(20):204101. doi: 10.1063/1.2734970.
   !For ethylene theres one combination band (011000000000) I got 8.9km/mol in VCI and ORCA VPT2 reports 10.33! 
 
+
+  !TO DO
+  ! ------ work on EXCLUD and SA-VCI to work together. RN it is disabled.
+  ! when using SA-VCI, the list of normal modes and the external file with the displacement, contain all normal modes (3N including translation and rotation)
+  ! the program skip the first 6, and read the rest, but in a full list in order. The list has to adapt
+  ! init_symmetry precisa receber a lista de modos excluídos (ou a lista list_new_modes) para filtrar mode_irrep na mesma ordem usada pelo resto do programa:
+
   !===========================================================================
   ! Scalar integers
   !===========================================================================
@@ -123,6 +130,16 @@ program main_vscf
   integer :: use_davidson_int
   logical :: use_davidson
 
+  !===========================================================================
+  ! To exclude
+  !===========================================================================
+  integer, allocatable :: modes_to_exclude(:), list_new_modes(:), N_modes_new, number_to_exclude
+  real*8, allocatable :: Potential_3_to_exclude(:,:,:)
+  real*8, allocatable :: Potential_4_to_exclude(:,:,:,:)
+  real*8, allocatable :: dipole_derivatives_to_exclude(:,:)
+  real*8, allocatable :: second_dipole_derivatives_to_exclude(:,:,:)
+  real*8, allocatable :: HO_freq_to_exclude(:)
+  logical :: exclude_mode
 
   !===========================================================================
   ! Timing
@@ -130,8 +147,6 @@ program main_vscf
   call system_clock(count_rate=count_rate, count_max=count_max)
   call system_clock(t_start)
   call cpu_time(start_time)
-
-
 
   !===========================================================================
   ! Banner
@@ -150,8 +165,9 @@ program main_vscf
   write(*,*)
 
   !===========================================================================
-  ! Read input                                                        CHANGED
+  ! Read input                                                        
   !===========================================================================
+  open(101, file='vscf.out')
   input_file = 'input_vscf.txt'
   test = 0 !this will compare the results with implementation from CRYSTAL for H2O found on their webpage (tutorials) https://tutorials.crystalsolutions.eu/tutorial.html?td=anharmonicity&tf=anharm!
   sci_mode = 'auto'
@@ -197,26 +213,20 @@ program main_vscf
   ! Allocate main arrays
   !===========================================================================
   allocate(HO_freq(N_modes))
-  allocate(Integral_sobrepos(N_modes, N_expansion))
-  allocate(Coeff(N_modes, N_expansion), new_coeff(N_modes, N_expansion))
   allocate(Potential_3(N_modes, N_modes, N_modes))
   allocate(Potential_4(N_modes, N_modes, N_modes, N_modes))
-  allocate(full_coef(N_modes, N_expansion, N_expansion))
   allocate(dipole_derivatives(N_modes, 3))
-  allocate(intensities_vscf(2*N_modes + N_modes*(N_modes-1)/2))
-  allocate(transition_energy_vscf(2*N_modes + N_modes*(N_modes-1)/2))
   allocate(second_dipole_derivatives(N_modes, N_modes, 3))
-  allocate(converged_state(2*N_modes + N_modes*(N_modes-1)/2))
-  allocate(mode_irrep_arr(N_modes))
 
-  converged_state = 0
+  
   Potential_3     = 0.d0
   Potential_4     = 0.d0
   HO_freq         = 0.d0
-  mode_irrep_arr  = 1     ! default: all totally symmetric
+  
 
   open(200, file='intensities.txt')
   dipole_derivatives = 0.d0
+  second_dipole_derivatives = 0.d0
 
   !===========================================================================
   ! Read force constants
@@ -230,7 +240,116 @@ program main_vscf
     do i = 1, N_modes
       write(*,'(3F12.6)') dipole_derivatives(i, 1:3)
     end do
-  else
+    write(*,*) '------------------------'
+
+  !!!!!!!!!!!!!!!!!!!
+  ! EXCLUDING MODES !
+  !!!!!!!!!!!!!!!!!!!
+
+  
+
+  allocate(modes_to_exclude(N_modes))
+
+  exclude_mode = .false.
+  modes_to_exclude = -1
+  number_to_exclude = 0
+  
+  call read_exclude(N_modes, HO_freq, exclude_mode, modes_to_exclude, number_to_exclude)
+
+  if(exclude_mode) then
+    write(*,*) '------------------------'
+    write(*,*) '    EXCLUDING MODES'
+    write(*,*) '------------------------'
+    write(101,*) '------------------------'
+    write(101,*) '    EXCLUDING MODES'
+    write(101,*) '------------------------'
+
+    N_modes_new = N_modes - number_to_exclude
+    allocate(list_new_modes(N_modes_new))
+
+    allocate( Potential_3_to_exclude(N_modes_new, N_modes_new, N_modes_new), &
+              Potential_4_to_exclude(N_modes_new,N_modes_new,N_modes_new,N_modes_new), &
+              dipole_derivatives_to_exclude(N_modes_new, 3), &
+              second_dipole_derivatives_to_exclude(N_modes_new,N_modes_new,3), &
+              HO_freq_to_exclude(N_modes_new))
+
+    list_new_modes = 0
+    k = 0
+    do i = 1, N_modes
+        if (.not. any(modes_to_exclude(1:number_to_exclude) == i)) then
+          k = k + 1
+          list_new_modes(k) = i
+        else
+          write(*,'(1A, 1I4, 1A, 1F12.3)') 'Mode excluded (index before exclusion): ', i, '    HO freq. (cm-1): ', HO_freq(i)  
+          write(101,'(1A, 1I4, 1A, 1F12.3)') 'Mode excluded (index before exclusion): ', i, '    HO freq. (cm-1): ', HO_freq(i)  
+        end if
+    end do
+
+    Potential_3_to_exclude = 0.d0
+    Potential_4_to_exclude = 0.d0
+    dipole_derivatives_to_exclude = 0.d0
+    second_dipole_derivatives_to_exclude = 0.d0
+
+    do i = 1, N_modes_new
+    dipole_derivatives_to_exclude(i,:) = dipole_derivatives(list_new_modes(i),:)
+    HO_freq_to_exclude(i) = HO_freq(list_new_modes(i))
+      do j = 1, N_modes_new
+      second_dipole_derivatives_to_exclude(i,j,:) = second_dipole_derivatives(list_new_modes(i), list_new_modes(j), :)
+        do k = 1, N_modes_new
+        Potential_3_to_exclude(i,j,k) = Potential_3(list_new_modes(i),list_new_modes(j),list_new_modes(k))
+          do l = 1, N_modes_new
+             Potential_4_to_exclude(i,j,k,l) = Potential_4(list_new_modes(i),list_new_modes(j),list_new_modes(k),list_new_modes(l))
+          end do
+        end do
+      end do
+    end do
+
+    write(*,*) ' >>> New modes list '
+    write(101,*) ' >>> New modes list '
+
+    do i = 1, N_modes_new
+      write(*,'(1A, 1I4, 1A, 1F12.3)') 'Mode (index after exclusion): ', i, '    HO freq. (cm-1): ', HO_freq_to_exclude(i)  
+      write(101,'(1A, 1I4, 1A, 1F12.3)') 'Mode (index after exclusion): ', i, '    HO freq. (cm-1): ', HO_freq_to_exclude(i)  
+    end do
+
+
+    if (allocated(HO_freq))               deallocate(HO_freq) 
+    if (allocated(Potential_3))           deallocate(Potential_3)
+    if (allocated(Potential_4))           deallocate(Potential_4)
+    if (allocated(dipole_derivatives))    deallocate(dipole_derivatives)
+    if (allocated(second_dipole_derivatives)) deallocate(second_dipole_derivatives)
+
+    N_modes = N_modes_new
+
+    allocate(HO_freq(N_modes))
+    allocate(Potential_3(N_modes, N_modes, N_modes))
+    allocate(Potential_4(N_modes, N_modes, N_modes, N_modes))
+    allocate(dipole_derivatives(N_modes, 3))
+    allocate(second_dipole_derivatives(N_modes, N_modes, 3))
+
+    
+    Potential_3     = 0.d0
+    Potential_4     = 0.d0
+    HO_freq         = 0.d0
+    dipole_derivatives = 0.d0
+    second_dipole_derivatives = 0.d0
+
+    Potential_3 = Potential_3_to_exclude
+    Potential_4 = Potential_4_to_exclude
+    dipole_derivatives = dipole_derivatives_to_exclude
+    second_dipole_derivatives = second_dipole_derivatives_to_exclude
+    HO_freq = HO_freq_to_exclude
+
+    deallocate( Potential_3_to_exclude, &
+              Potential_4_to_exclude, &
+              dipole_derivatives_to_exclude, &
+              second_dipole_derivatives_to_exclude, &
+              HO_freq_to_exclude, &
+              modes_to_exclude, &
+              list_new_modes)
+  end if !this is the exclude mode if
+
+  else !this is the test water if
     HO_freq(1) = 1639.07d0
     HO_freq(2) = 3798.22d0
     HO_freq(3) = 3898.95d0
@@ -260,6 +379,18 @@ program main_vscf
     Potential_4(1,2,2,3) = -5.3404d0
     Potential_4(1,2,3,3) = -123.7959d0
   end if
+
+
+  allocate(full_coef(N_modes, N_expansion, N_expansion))
+  allocate(Integral_sobrepos(N_modes, N_expansion))
+  allocate(Coeff(N_modes, N_expansion), new_coeff(N_modes, N_expansion))
+  allocate(intensities_vscf(2*N_modes + N_modes*(N_modes-1)/2))
+  allocate(transition_energy_vscf(2*N_modes + N_modes*(N_modes-1)/2))
+  allocate(converged_state(2*N_modes + N_modes*(N_modes-1)/2))
+  allocate(mode_irrep_arr(N_modes))
+
+  mode_irrep_arr  = 1     
+  converged_state = 0
 
   call apply_degeneracy_factors(N_modes, Potential_3, Potential_4)
 
@@ -328,8 +459,6 @@ program main_vscf
       end do
     end do
   end do
-
-  open(101, file='vscf.out')
 
 if(use_vci_at_vscf == 1) then
 
@@ -680,6 +809,11 @@ end if
     if (max_iter_sci > 0 .and. point_group_name == 'C1') calculate_sci = 1
     if (max_iter_sci == 0 .and. sci_mode == 'list') calculate_sci = 1
 
+    if (exclude_mode == .true. .and. point_group_input /= 'C1') then
+      write(*,*)
+      write(*,'(A)') 'ERROR: NOT YET IMPLEMENTED TO USE SA-VCI and EXCLUD, change to normal VCI or Selected VCI'
+      stop
+    end if
     !=========================================================================
     ! Dispatch
     !=========================================================================
@@ -798,6 +932,7 @@ end if
 
   close(101)
   close(200)
+  if(exclude_mode) write(*,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
   write(*,'(A)')
   write(*,'(A)') " <:> Normal termination."
 

@@ -474,6 +474,161 @@ subroutine read_real(keyword, val, default_val)
   val = default_val
 end subroutine read_real
 
+subroutine read_exclude(N_modes, HO_freq, do_exclude, modes_buffer, number_to_exclude)
+  implicit none
+  
+  integer  :: N_modes
+  real*8   :: HO_freq(N_modes)
+  logical  :: do_exclude
+  integer  :: modes_buffer(N_modes)   ! upper bound: at most N_modes indices
+  integer  :: number_to_exclude
 
+  integer            :: iounit, ios, ios2, pos, n_tokens, i, dup_i, dup_j
+  logical            :: exists, has_dup, keyword_found
+  character(len=500) :: line, remainder
+  character(len=20)  :: sub_kw
+  real*8              :: freq_cut, tmp_val
+
+ ! do_exclude        = .false.
+ ! number_to_exclude = 0
+ ! modes_buffer      = -1
+  keyword_found     = .false.
+
+
+  !===========================================================================
+  ! Step 1: look for the EXCLUD keyword. If absent, return immediately
+  ! with do_exclude still .false.
+  !===========================================================================
+  inquire(file='extra_input.txt', exist=exists)
+  if (.not. exists) return
+
+  open(newunit=iounit, file='extra_input.txt', status='old', action='read', iostat=ios)
+  if (ios /= 0) return
+
+  do
+    read(iounit, '(A)', iostat=ios) line
+    if (ios /= 0) exit
+    if (len_trim(line) < 6) cycle
+    if (line(1:6) == 'EXCLUD') then
+      keyword_found = .true.
+      remainder = adjustl(line(7:))
+      exit
+    end if
+  end do
+  close(iounit)
+
+  if (.not. keyword_found) return   ! keyword not present -> exclude_mode stays false
+
+  do_exclude = .true.
+
+  !===========================================================================
+  ! Step 2: identify the sub-keyword (auto / spec)
+  !===========================================================================
+  read(remainder, *, iostat=ios2) sub_kw
+  if (ios2 /= 0) then
+    write(*,'(1A)') 'WARNING: could not parse EXCLUD line - program terminated - remove or change EXCLUD keyword'! -- exclusion disabled.'
+    do_exclude = .false.
+    stop
+    return
+  end if
+
+  if (trim(sub_kw) == 'auto') then
+
+    read(remainder, *, iostat=ios2) sub_kw, freq_cut
+    if (ios2 /= 0) then
+      write(*,'(1A)') 'WARNING: EXCLUD auto missing/invalid cutoff - program terminated - remove or change EXCLUD keyword'!-- exclusion disabled.'
+      do_exclude = .false.
+      stop
+      return
+    end if
+
+    number_to_exclude = count(HO_freq(1:N_modes) < freq_cut)
+    if (number_to_exclude == 0) then
+      write(*,'(1A,1F10.3, 1A)') 'EXCLUD auto: no modes below cutoff (cm-1) = ', freq_cut, ' - program terminated - remove or change EXCLUD keyword'
+      do_exclude = .false.
+      stop
+      return
+    end if
+
+    n_tokens = 0
+    do i = 1, N_modes
+      if (HO_freq(i) < freq_cut) then
+        n_tokens = n_tokens + 1
+        modes_buffer(n_tokens) = i
+      end if
+    end do
+
+  else if (trim(sub_kw) == 'spec') then
+
+    pos = index(remainder, trim(sub_kw)) + len_trim(sub_kw)
+    remainder = adjustl(remainder(pos:))
+
+    n_tokens = 0
+    do while (len_trim(remainder) > 0)
+      read(remainder, *, iostat=ios2) tmp_val
+      if (ios2 /= 0) exit
+      n_tokens = n_tokens + 1
+      if (n_tokens > N_modes) then
+        write(*,'(1A)') 'ERROR: EXCLUD spec lists more modes than exist'
+        stop
+      end if
+      modes_buffer(n_tokens) = nint(tmp_val)
+
+      remainder = adjustl(remainder)
+      pos = index(remainder, ' ')
+      if (pos == 0) then
+        remainder = ''
+      else
+        remainder = adjustl(remainder(pos:))
+      end if
+    end do
+
+    if (n_tokens == 0) then
+      write(*,'(1A)') 'WARNING: EXCLUD spec has no mode indices - program terminated - remove or change EXCLUD keyword'!-- exclusion disabled.'
+      do_exclude = .false.
+      stop
+      return
+    end if
+    number_to_exclude = n_tokens
+
+  else
+    write(*,'(1A,1A)') 'WARNING: unrecognized EXCLUD subkeyword: - program terminated - remove or change EXCLUD keyword', trim(sub_kw)
+    do_exclude = .false.
+    stop
+    return
+  end if
+
+  !===========================================================================
+  ! checks
+  !===========================================================================
+  if (number_to_exclude >= N_modes) then
+    write(*,'(1A,1I4,1A,1I4,1A)') 'ERROR: EXCLUD requests removing ', &
+        number_to_exclude, ' modes, but only ', N_modes, ' modes exist.'
+    stop
+  end if
+
+  if (any(modes_buffer(1:number_to_exclude) < 1) .or. &
+      any(modes_buffer(1:number_to_exclude) > N_modes)) then
+    write(*,'(1A)') 'ERROR: EXCLUD contains a mode index out of range [1, N_modes].'
+    do i = 1, number_to_exclude
+      if (modes_buffer(i) < 1 .or. modes_buffer(i) > N_modes) then
+        write(*,'(1A,1I6)') '  -> invalid index: ', modes_buffer(i)
+      end if
+    end do
+    stop
+  end if
+
+  has_dup = .false.
+  do dup_i = 1, number_to_exclude - 1
+    do dup_j = dup_i + 1, number_to_exclude
+      if (modes_buffer(dup_i) == modes_buffer(dup_j)) then
+        has_dup = .true.
+        write(*,'(1A,1I6)') 'ERROR: duplicate mode index in EXCLUD: ', modes_buffer(dup_i)
+      end if
+    end do
+  end do
+  if (has_dup) stop
+
+end subroutine read_exclude
 
 end module read_input_file
