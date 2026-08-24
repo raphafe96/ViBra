@@ -10,6 +10,7 @@ The playground currently introduces the following new and experimental features:
 - **Iterative diagonalization**: Option to run an iterative Davidson diagonalizer when a full VCI or selected VCI calculation is requested, avoiding the memory bottleneck of storing the full dense Hamiltonian matrix. Not yet implemented for the symmetry adapted part.
 - **Built-in water molecule test**: An option to automatically run a water molecule test case using VCI@VSCF. This allows you to compare results with Crystal23 output and verify that everything is running correctly (you must explicitly set the RUNSCF to 1).
 - **Extended intensity output**: For full and selected VCI calculations, frequencies are now also saved in km/mol alongside the transition dipoles in a new file called `dipoles_intensity_vci.txt`, providing richer data for spectral analysis.
+- **Mode exclusion (`EXCLUD`)**: Possibility to exclude specific vibrational modes from the VSCF/VCI calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. **This currently does not work for Symmetry-Adapted VCI (SA-VCI)** — see the keyword description and warning below.
 
 ## 🧪 How to Use the New Features
 
@@ -29,6 +30,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `RUNENR` | Integer | Set to 1 to estimate the number of states needed for a given frequency threshold (based on HO energies), 2 to also print the state energies (HO), or 0 to do nothing. Default: 0. |
 | `MAXFRQ` |    Real | Maximum frequency in cm⁻¹ for which intensities will be calculated. Default: 4500.0.                                |
 | `DAVBUF` | Integer | Buffer size for the subspace dimension in the Davidson diagonalizer. There is a minimum limit internally set to DAVSTA times 20. Default: 4000. |
+| `EXCLUD` |  Mixed  | Excludes vibrational modes from the calculation before VSCF/VCI. Two sub-keyword forms: `EXCLUD auto <freq_cutoff>` removes every mode with a harmonic frequency (cm⁻¹) below `<freq_cutoff>` (real); `EXCLUD spec <mode1> <mode2> ...` (integers) removes exactly the listed mode indices. For `spec`, indices refer to **vibrational** modes only: a non-linear molecule with N atoms has 3N total modes, of which 3N−6 are vibrational after removing the 3 translations and 3 rotations, and the first vibrational mode is index 1 (not the first of the 3N raw modes). Default: not set (no exclusion). **⚠️ Does not currently work with Symmetry-Adapted VCI (SA-VCI, i.e. a point group other than C1).** |
 
 ### Example: Running a Water Test
 
@@ -49,10 +51,29 @@ To explore a large VCI space using a harmonic basis and the memory-efficient Dav
 
 Then configure your standard `input_vscf.txt` with a large NQUANT and MAXSCI set to 0 for a full VCI. Run ViBra and the calculation will proceed in the VCI@HO framework, diagonalizing the Hamiltonian iteratively and saving significant memory.
 
+### Example: Excluding Modes
+
+To automatically exclude all modes below 200 cm⁻¹:
+
+    EXCLUD auto 200.0
+
+To exclude specific modes (e.g. modes 1, 6, and 38):
+
+    EXCLUD spec 1 6 38
+
+⚠️ Only use `EXCLUD` with point group `C1` for now — combining it with SA-VCI (any other point group) will give incorrect irrep assignments and, consequently, incorrect symmetry-restricted VCI results.
+
 Happy exploring, and may your vibrations always be harmonic!
 
 
 ## Changelog
+
+**24/08/2026**
+
+* Added the new `read_exclude` subroutine to `symmetry.f90` and updated `main_vscf.f90`:
+
+  * Added the `EXCLUD` keyword to `extra_input.txt`, allowing modes to be excluded from the VSCF/VCI calculation automatically (`auto`, by frequency cutoff) or explicitly (`spec`, by vibrational mode index).
+  * Not yet compatible with Symmetry-Adapted VCI (`symmetry.f90` does not account for excluded modes).
 
 **19/08/2026**
 
@@ -77,5 +98,3 @@ Happy exploring, and may your vibrations always be harmonic!
 * Added intensities in km/mol for full VCI.
 * Added a simple water-molecule test case.
 * Added VCI@HO.
-
-
