@@ -61,9 +61,7 @@ To exclude specific modes (e.g. modes 1, 6, and 38):
 
     EXCLUD spec 1 6 38
 
-⚠️ Only use `EXCLUD` with point group `C1` for now — combining it with SA-VCI (any other point group) will give incorrect irrep assignments and, consequently, incorrect symmetry-restricted VCI results.
-
-Happy exploring, and may your vibrations always be harmonic!
+⚠️ Only use `EXCLUD` with point group `C1` for now. Combining it with SA-VCI (any other point group) will give incorrect irrep assignments and, consequently, incorrect symmetry-restricted VCI results.
 
 
 ## Changelog
