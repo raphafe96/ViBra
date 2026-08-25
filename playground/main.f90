@@ -9,6 +9,7 @@ program main_vscf
   use symmetry_module
   use mkl_service
   use omp_lib
+  use v_pt2
   implicit none
 
   !Please report any problem to raphafe96@gmail.com. Collaboration is welcome!
@@ -142,6 +143,11 @@ program main_vscf
   logical :: exclude_mode
   real*8 :: energy_excluded
 
+  !
+  !
+  integer :: run_vpt2
+
+
   !===========================================================================
   ! Timing
   !===========================================================================
@@ -169,9 +175,13 @@ program main_vscf
   test = 0 !this will compare the results with implementation from CRYSTAL for H2O found on their webpage (tutorials) https://tutorials.crystalsolutions.eu/tutorial.html?td=anharmonicity&tf=anharm!
   sci_mode = 'auto'
   use_vci_at_vscf = 1
+  warning = 0
 
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
+  call read_intg('RUNPT2', run_vpt2, 0)
+  if (run_vpt2 /= 0) use_vci_at_vscf = 0 !we make the vpt2 theory based on harmonic oscilator...
+
  ! if (test == 1) use_vci_at_vscf = 1
  
 
@@ -262,6 +272,7 @@ program main_vscf
   write(101,*)
 
   if(exclude_mode) then
+
     write(*,*) '------------------------'
     write(*,*) '    EXCLUDING MODES'
     write(*,*) '------------------------'
@@ -686,23 +697,41 @@ end if !end checking if runs HO or VSCF
     write(*,'(A)') '========================================'
     write(*,'(A)') '            FINISHED SYMMETRY           '
     write(*,'(A)') '========================================'
+    if(run_vpt2 == 0) then
+      write(*,'(A)') '========================================'
+      write(*,'(A)') '              STARTING VCI              '
+      write(*,'(A)') '========================================'
 
-    write(*,'(A)') '========================================'
-    write(*,'(A)') '              STARTING VCI              '
-    write(*,'(A)') '========================================'
-
-    write(101,*)
-    write(101,'(A)') '========================================'
-    write(101,*)
-    if (use_vci_at_vscf == 1) then 
-      write(101,'(A)') 'VCI performed using the VSCF ground state'
+      write(101,*)
+      write(101,'(A)') '========================================'
+      write(101,*)
+      if (use_vci_at_vscf == 1) then 
+        write(101,'(A)') 'VCI performed using the VSCF ground state'
+      else
+        write(101,'(A)') 'VCI performed using the HO ground state'
+      end if 
+      write(101,*)
+      write(101,'(A)') '========================================'
+      write(101,'(A)') '            STARTING  VPT2              '
+      write(101,'(A)') '========================================'
     else
-      write(101,'(A)') 'VCI performed using the HO ground state'
-    end if 
-    write(101,*)
-    write(101,'(A)') '========================================'
-    write(101,'(A)') '            STARTING  VCI               '
-    write(101,'(A)') '========================================'
+      write(*,'(A)') '========================================'
+      write(*,'(A)') '              STARTING VPT2             '
+      write(*,'(A)') '========================================'
+
+      write(101,*)
+      write(101,'(A)') '========================================'
+      write(101,*)
+      if (use_vci_at_vscf == 1) then 
+        write(101,'(A)') 'VPT2 performed using the VSCF ground state'
+      else
+        write(101,'(A)') 'VPT2 performed using the HO ground state'
+      end if 
+      write(101,*)
+      write(101,'(A)') '========================================'
+      write(101,'(A)') '            STARTING  VPT2              '
+      write(101,'(A)') '========================================'
+    end if
   !just for debug
 
 if (test == 1) then
@@ -830,6 +859,24 @@ end if
     !=========================================================================
     ! Dispatch
     !=========================================================================
+    if(run_vpt2 == 1) then
+      call vpt2(                                             &
+            Potential_3, Potential_4, N_modes, N_expansion,              &
+            HO_freq, store_integrals, full_coef, combination_vec,        &
+            total_combinations, N_states, N_threads,                     &
+            dipole_derivatives, second_dipole_derivatives, N_quanta,     &
+            total_3, total_4,                                             &
+            Potential_3_vec, Potential_4_vec,                             &
+            final_index_3, count_index_3, n_unique_3, unique_modes_3, check3, &
+            final_index_4, count_index_4, n_unique_4, unique_modes_4, check4, &
+            cubic_for_mode, n_cubic_for_mode, n_cubic_max,               &
+            quartic_for_mode, n_quartic_for_mode, n_quartic_max)
+      write(*,'(A)') '========================================'
+      write(*,'(A)') '             FINISHED VPT2              '
+      write(*,'(A)') '========================================'
+      call cpu_time(end_time)
+    else
+    
     if (use_symmetry == 1 .and. point_group_input /= 'C1') then
 
       write(*,'(A)')   ' >>> Using SYMMETRY-ADAPTED VCI (VCI-SYM)'
@@ -894,7 +941,7 @@ end if
     write(*,'(A)') '             FINISHED VCI               '
     write(*,'(A)') '========================================'
     
- 
+  end if
     write(*,'(1A,1F11.2,1A)') " Total CPU time:     ", &
                                end_time - start_time, " seconds"
 
