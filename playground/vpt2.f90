@@ -639,8 +639,10 @@ subroutine vpt2(Potential_3, Potential_4, N_modes, N_expansion, &
   do i = 1, total_combinations
     if(i == 1) then 
         write(101,'(1I20, 3F20.4, 1A20, 3F20.4)') i, U_energies(i), VPT2_energies(i), VPT2_energies(i) - U_energies(i), '0.0000', VPT2_energies(i) - VPT2_energies(1), VPT2_energies(i) - VPT2_energies(1) 
-    else 
+    elseif( i .lt. N_modes + 2 .and. i .gt. 1) then
         write(101,'(1I20, 7F20.4)') i, U_energies(i), VPT2_energies(i), VPT2_energies(i) - U_energies(i), HO_freq(i-1)/cm_to_hartree, VPT2_energies(i) - VPT2_energies(1), VPT2_energies(i) - VPT2_energies(1) - HO_freq(i-1)/cm_to_hartree
+    else 
+        write(101,'(1I20, 3F20.4)') i, U_energies(i), VPT2_energies(i), VPT2_energies(i) - U_energies(i)
     end if
     
   end do
