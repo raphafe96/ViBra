@@ -6,6 +6,11 @@ use symmetry_module
 use read_input_file
 contains
 
+!TO DO: I used the same vci subroutines for the vpt2, with same variables etc etc etc... code has to be deeply cleaned. 
+!TO DO: I need also to create a modulo for thi compute H_element, so I can remove it from here and from the VCI module. 
+
+!TO DO: Drink a beer. Prost.
+
 subroutine compute_H_element_vpt2(m_cfg, n_cfg, vm, vn, N_modes, max_quanta, &
     modal_int, &
     Potential_3, Potential_4, HO_freq, &
