@@ -10,7 +10,7 @@ The playground currently introduces the following new and experimental features:
 - **Iterative diagonalization**: Option to run an iterative Davidson diagonalizer when a full VCI or selected VCI calculation is requested, avoiding the memory bottleneck of storing the full dense Hamiltonian matrix. Not yet implemented for the symmetry adapted part.
 - **Built-in water molecule test**: An option to automatically run a water molecule test case using VCI@VSCF. This allows you to compare results with Crystal23 output and verify that everything is running correctly (you must explicitly set the RUNSCF to 1).
 - **Extended intensity output**: For full and selected VCI calculations, frequencies are now also saved in km/mol alongside the transition dipoles in a new file called `dipoles_intensity_vci.txt`, providing richer data for spectral analysis.
-- **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. **This currently does not work for Symmetry-Adapted VCI (SA-VCI)** — see the keyword description and warning below.
+- **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI/VPT calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. **This currently does not work for Symmetry-Adapted VCI (SA-VCI)** — see the keyword description and warning below.
 - **Sum over States VPT2 (SoS VPT2)**: A way to obtain anharmonic energies without a full VCI diagonalization, using the existing VCI Hamiltonian kernel. Described in detail below.
 
 ## 🧪 How to Use the New Features
