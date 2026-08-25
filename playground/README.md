@@ -48,8 +48,6 @@ Because this formulation assumes the basis states diagonalize the zero order (ha
 
 This sum over states construction differs from the standard, formally ordered VPT2 expression used by packages (which keeps only the diagonal quartic contribution at first order and the off diagonal cubic contribution at second order, dropping off diagonal quartic terms as higher order in the perturbation parameter). SoS VPT2 as implemented here keeps the off diagonal quartic contributions as well, so it is best thought of as a related but distinct second order treatment rather than a drop in replacement for standard VPT2 output.
 
-**Preliminary observation, not a general conclusion:** in the one test case examined so far, the ethylene molecule, the fundamental transition energies obtained from SoS VPT2 agreed with the full VCI reference more closely than the standard ORCA VPT2 numbers agreed with ViBra's own VCI reference. This is a single molecule, single test observation meant to motivate further testing, not a claim that SoS VPT2 is generally more accurate than standard VPT2. Broader validation across more systems is needed before drawing any firm conclusion.
-
 ### Example: Running a Water Test
 
 To run the built-in water molecule test and verify your setup, create an `extra_input.txt` file with the following content:
@@ -98,7 +96,6 @@ To exclude specific modes (e.g. modes 1, 6, and 38):
 
   * Reuses the existing VCI sparse Hamiltonian kernel to evaluate diagonal and off diagonal matrix elements, then applies second order perturbation theory instead of diagonalizing.
   * Automatically forces the harmonic oscillator ground state modals (equivalent to `RUNSCF 0`) whenever `RUNPT2` is nonzero.
-  * Preliminary, single molecule (ethylene) observation: SoS VPT2 fundamentals agreed with VCI more closely than standard ORCA VPT2 agreed with ViBra's VCI. Needs broader validation before any general conclusion.
 
 **24/08/2026**
 
