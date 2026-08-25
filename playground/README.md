@@ -35,6 +35,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `EXCLUD` |  Mixed  | Excludes vibrational modes from the calculation before VSCF/VCI. Two sub-keyword forms: `EXCLUD auto <freq_cutoff>` removes every mode with a harmonic frequency (cm⁻¹) below `<freq_cutoff>` (real); `EXCLUD spec <mode1> <mode2> ...` (integers) removes exactly the listed mode indices. For `spec`, indices refer to **vibrational** modes only: a non-linear molecule with N atoms has 3N total modes, of which 3N−6 are vibrational after removing the 3 translations and 3 rotations, and the first vibrational mode is index 1 (not the first of the 3N raw modes). Default: not set (no exclusion). **⚠️ Does not currently work with Symmetry-Adapted VCI (SA-VCI, i.e. a point group other than C1).** |
 
 ### Sum over States VPT2 (SoS VPT2)
+See: https://dx.doi.org/10.1021/acs.jpca.0c09526, J. Phys. Chem. A 2021, 125, 1301−1324'
 
 Setting `RUNPT2 1` switches the dispatch away from VCI entirely and calls a dedicated `vpt2` routine that computes second order perturbative energies directly, using a sum over states formulation:
 
