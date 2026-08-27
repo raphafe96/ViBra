@@ -193,7 +193,7 @@ program main_vscf
                   constants_mode, N_quanta, N_states, conv_scf,       &
                   N_threads, point_group_input, proj_cutoff,           &
                   max_iter_sci, sci_mode, quanta_max_reference_sci) 
-
+  N_states = -1 !If less roots is needed, the code must run with davidson.
    use_davidson = .false.
    call read_intg('RUNDAV', use_davidson_int, 0)
    if (use_davidson_int == 1) use_davidson = .true.
@@ -833,7 +833,7 @@ end if
 
       if(maxval(sum(combination_vec(:, 1:N_modes), dim=2)) .gt. N_quanta) then
 
-        write(*,*) 'ERROR, min. value for  NQUANT: ', maxval(sum(combination_vec(:, 1:N_modes), dim=2)), ' FOUND: ', N_quanta
+        write(*,'(1A, 1I4, 1A, 1I4)') 'ERROR, min. value for  NQUANT: ', maxval(sum(combination_vec(:, 1:N_modes), dim=2)), ' FOUND: ', N_quanta
         stop
 
       end if
