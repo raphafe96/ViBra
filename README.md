@@ -10,6 +10,11 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
 > **(https://doi.org/10.48550/arXiv.2607.22850)**  
 >  
 > **Theory and Manual**: [📖 Read (English)](manual.pdf) | [📖 Ler (Português)](manual_pt.pdf)
+
+## ⚠️ Important Warning: Selected VCI with List Mode
+
+When the Selected VCI is used with list mode (`MAXSCI N list`), a severe bug was found in the parsing of the user-provided state list. This does not affect the overall trend of the results presented, but rather the exact numerical values. We are waiting for further validation before replacing the arXiv paper and updating the Zenodo repository. In the meantime, a working version (again, it is being tested) can be found in the [`playground`](playground/)folder.
+
 ## ✨ Main Features
 
 * Harmonic oscillator, VSCF, VCI, Selected VCI, and Symmetry-Adapted VCI calculations
