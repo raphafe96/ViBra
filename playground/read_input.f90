@@ -110,9 +110,9 @@ module read_input_file
           read(line,*,iostat=io_conv) keyword, conv_scf
           write(*,'(A30,I9)') ' Convergence VSCF: ', conv_scf
 
-        case('NSTATE')
-          read(line,*,iostat=io_nstates) keyword, N_states
-          write(*,'(A30,I9)') ' Number of states: ', N_states
+        !case('NSTATE')
+        !  read(line,*,iostat=io_nstates) keyword, N_states
+        !  write(*,'(A30,I9)') ' Number of states: ', N_states
 
         case('THREAD')
           read(line,*,iostat=io_threads) keyword, N_threads
@@ -161,7 +161,7 @@ module read_input_file
           write(*,'(A30,A)') ' >> WARNING: Unknown keyword: ', trim(keyword)
           write(*,'(A)')     '    Available keywords:'
           write(*,'(A)')     '      NMODES  NEXPAN  FILECT  CTEMOD'
-          write(*,'(A)')     '      NQUANT  CVGSCF  NSTATE  THREAD'
+          write(*,'(A)')     '      NQUANT  CVGSCF  THREAD'
           write(*,'(A)')     '      PGROUP  PROJCT  MAXSCI'
 
       end select
@@ -234,12 +234,12 @@ module read_input_file
     end if
 
     !--- NSTATE ---
-    if (io_nstates /= 0 .or. N_states <= -10000) then
-      write(*,'(A)') ' ERROR: NSTATE must be an integer'
-      valid = .false.
-    else
-      write(*,'(A,I6)') ' NSTATE     validation : PASSED  => ', N_states
-    end if
+    !if (io_nstates /= 0 .or. N_states <= -10000) then
+    !  write(*,'(A)') ' ERROR: NSTATE must be an integer'
+    !  valid = .false.
+    !else
+    !  write(*,'(A,I6)') ' NSTATE     validation : PASSED  => ', N_states
+    !end if
 
     !--- CVGSCF ---
     if (conv_scf <= 0 .or. io_conv /= 0) then

@@ -955,7 +955,7 @@ end subroutine vibrational_ci
 !=============================================================================!
 ! Subroutine: selected_vibrational_ci                                         !
 !                                                                             !
-! Performs Selected Vibrational CI (SCI) starting from a CISD reference space.!
+! Performs Selected Vibrational CI (SCI) starting from a CISD reference space.! Example for CISD reference xD
 !                                                                             !
 ! Algorithm:                                                                  !
 !   1. Identify the CISD reference: all configurations in vec_combinations    !
@@ -976,6 +976,9 @@ end subroutine vibrational_ci
 ! Inputs mirror those of vibrational_ci plus N_sel_per_state (number of       !
 ! external configurations to select per CISD state).                          !
 !=============================================================================!
+
+!it started only for a CISD reference, so some variables are still named after that...
+
 subroutine selected_vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
     HO_freq, store_integrals, full_coef, vec_combinations, &
     total_combinations, N_states, N_threads, dipole_derivatives, &
@@ -992,7 +995,7 @@ implicit none
 !---------------------------------------------------------------------------
 ! INPUT VARIABLES
 !---------------------------------------------------------------------------
-integer,  intent(in) :: N_modes, N_expansion, N_quanta, N_threads, reference_max
+integer,  intent(in) :: N_modes, N_expansion, N_quanta, N_threads, reference_max, N_states
 integer,  intent(in) :: total_combinations, total_combinations2
 integer,  intent(in) :: vec_combinations(total_combinations, N_modes), vec_combinations2(total_combinations2, N_modes)
 integer,  intent(in) :: total_3, total_4, n_cubic_max, n_quartic_max
@@ -1021,7 +1024,7 @@ character (len=4), intent(in) :: mode_sci
 !---------------------------------------------------------------------------
 ! SCALAR LOCALS
 !---------------------------------------------------------------------------
-integer :: i, j, k, ii, jj, kk, pp, m, n, n_states_list, N_sel_per_state, check_list, N_states
+integer :: i, j, k, ii, jj, kk, pp, m, n, N_sel_per_state, check_list
 integer :: max_quanta
 integer :: mu, nu, p  
 integer :: mode_idx, Vc_check, n_diff
@@ -1128,8 +1131,6 @@ max_quanta_actual = N_quanta
 check_list = 0
 if (mode_sci == 'list') then
     check_list = 1
-    N_states = total_combinations2
-    !N_sel_per_state = 8
 end if
 
   !NEW INPUT
@@ -1222,6 +1223,7 @@ write(*,'(A,I6,A,I6)') ' Inverted index: max cubic/mode=', n_cubic_max, &
 !==========================================================================
 ! STEP 3: Build CI reference space
 !==========================================================================
+
 if (check_list == 1) then
 
     allocate(is_ref(total_combinations2))
@@ -1229,15 +1231,22 @@ if (check_list == 1) then
     is_ref      = .false.
     is_selected = .false.
     n_ref       = 0
-    open (11, file='list_states.txt')
 
-        read(11, *) n_states_list
-
-    close(11)
-
-    do m = 1, total_combinations ! Total_combinations in this case is just the number of combinations from the list, for the reference CI state, combination2 is for the all combinations
-        do n = 1, n_states_list
+    j = 0
+    do m = 1, total_combinations
+        do n = m + 1, total_combinations
             if (all(vec_combinations(m, :) == vec_combinations(n, :))) then
+                j = 1
+                write(*,'(1A, 100000I3)') ' ERROR REMOVE DUPLICATED STATE: ', vec_combinations(m, :)
+            end if
+        end do
+    end do
+
+    if(j==1) stop
+
+    do m = 1, total_combinations2 ! Total_combinations in this case is just the number of combinations from the list, for the reference CI state, combination2 is for the all combinations defined by max quanta in the input file.
+        do n = 1, total_combinations
+            if (all(vec_combinations2(m, :) == vec_combinations(n, :))) then
                 is_ref(m)      = .true.
                 is_selected(m) = .true.
                 n_ref          = n_ref + 1
@@ -1256,7 +1265,7 @@ if (check_list == 1) then
 
 
 else 
-    allocate(is_ref(total_combinations))
+    allocate(is_ref(total_combinations)) !here total combination is defined by all combinations based on amx quanta in the input file. Yeah I know, I was stupid when naming this.
     allocate(is_selected(total_combinations))
     is_ref      = .false.
     is_selected = .false.
@@ -1551,8 +1560,8 @@ else
     call dsyevr_A(H_sel, N_states, eigenvalues, eigenvectors, 'N')
 end if
 
-! Number of CISD eigenstates available for screening
-n_cisd_states = min(N_states, n_sel)
+! Number of REF eigenstates available for screening
+n_cisd_states = n_sel
 
 ! Print CISD energies (first 10 states)
 write(*,'(A)') ' --- REF. energies (cm-1, relative to ZPE):'

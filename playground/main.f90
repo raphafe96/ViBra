@@ -182,6 +182,8 @@ program main_vscf
   call read_intg('RUNPT2', run_vpt2, 0)
   if (run_vpt2 /= 0) use_vci_at_vscf = 0 !we make the vpt2 theory based on harmonic oscilator...
 
+  N_states = -1 !If less roots is needed, the code must run with davidson.
+
  ! if (test == 1) use_vci_at_vscf = 1
  
 
@@ -760,8 +762,8 @@ end if
         total_combinations = total_combinations + j
       end do
 
-      if (N_states > total_combinations .or. N_states < 1) &
-          N_states = total_combinations
+      !if (N_states > total_combinations .or. N_states < 1) &
+      N_states = total_combinations
 
       allocate(combination_vec(total_combinations, N_modes))
       combination_vec = 0
@@ -789,8 +791,8 @@ end if
         total_combinations2 = total_combinations2 + j
       end do
 
-      if (N_states > total_combinations2 .or. N_states < 1) &
-          N_states = total_combinations2
+      !if (N_states > total_combinations2 .or. N_states < 1) &
+      N_states = total_combinations2
 
       allocate(combination_vec2(total_combinations2, N_modes))
       combination_vec2 = 0
@@ -812,7 +814,6 @@ end if
 
       read(199, *) max_states
       total_combinations = max_states
-      N_states = max_states
       
       allocate(combination_vec(max_states, N_modes))
       write(101,'(A,I8)') ' States read: ', max_states
