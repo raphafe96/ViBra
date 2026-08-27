@@ -2,6 +2,14 @@
 
 This is the ViBra playground, a sandbox for new, experimental, and evolving features that push the boundaries of vibrational configuration interaction. Explore, experiment, and help shape our software. Just remember: things here may change, break, or evolve, that is the nature of a playground!
 
+## ⚠️ Important Warning: Selected VCI with List Mode (State List Parsing Bug)
+
+A severe bug was found when the Selected VCI is used with **list mode** (`MAXSCI N list`). The issue arises in the construction of the CI reference state: ViBra builds the list of total configurations based on total quanta, then reads the user‑provided state list and compares it with all states to define what is reference and what is external, for further EN-PT enlargemen if requestedt. The bug is in the ordering/labeling of the states: the program was using the order of the full configuration list rather than the order of the provided list. As a result, the reference space contained **the exact same number** of states as in the list file, but because the ordering was not properly parsed, the final reference contained **mismatched states** from the actual list provided.
+
+This does not affect the overall trend of the results presented in the arXiv paper and Zenodo repository, but it does affect the exact numerical values. We are waiting for further validation before updating the arXiv paper and Zenodo repository. A working (but still being tested) version is available here.
+
+✅ **Note:** The **auto mode** for Selected VCI (`MAXSCI N auto s/d/t/q`) is **working as intended** and is **not affected** by the list‑mode parsing bug.
+
 ## ✨ What's New in This Version
 
 The playground currently introduces the following new and experimental features:
@@ -90,6 +98,12 @@ To exclude specific modes (e.g. modes 1, 6, and 38):
 
 
 ## Changelog
+
+**27/08/2026**
+
+* Fixed a bug in the parsing of the user‑provided state list in the `selected_vibrational_ci` subroutine (`vci.f90`), specifically in step 3 (building the CI reference state). The previous version incorrectly used the ordering of the full configuration list instead of the user‑provided list, causing mismatched reference states.
+* Added a checker to detect and reject duplicated states in the user‑provided list.
+* The keyword `NSTATE` is now **deprecated**. If fewer than the total number of states is desired, run a iterative diagonalization and set the number of roots (`DAVSTA`) accordingly.
 
 **25/08/2026**
 
