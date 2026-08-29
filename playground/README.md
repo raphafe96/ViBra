@@ -123,7 +123,7 @@ To exclude specific modes (e.g. modes 1, 6, and 38):
 
 ⚠️ Only use `EXCLUD` with point group `C1` for now. Combining it with SA-VCI (any other point group) will give incorrect irrep assignments and, consequently, incorrect symmetry-restricted VCI results.
 
-### Example: Excluding Force-Field Terms by Index-Distinctness
+### Example: 0 Force-Field Terms by Index-Distinctness
 
 To zero only the fully off-diagonal cubic terms (Φ_ijk, 3 distinct indices):
 
