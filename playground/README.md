@@ -20,6 +20,7 @@ The playground currently introduces the following new and experimental features:
 - **Extended intensity output**: For full and selected VCI calculations, frequencies are now also saved in km/mol alongside the transition dipoles in a new file called `dipoles_intensity_vci.txt`, providing richer data for spectral analysis.
 - **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI/VPT calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. **This currently does not work for Symmetry-Adapted VCI (SA-VCI)** — see the keyword description and warning below.
 - **Sum over States VPT2 (SoS VPT2)**: A way to obtain anharmonic energies without a full VCI diagonalization, using the existing VCI Hamiltonian kernel. Described in detail below.
+- **Force-field term exclusion by index-distinctness**: Possibility to zero out specific cubic/quartic force constants before VSCF/VCI/VPT2, based on how many distinct mode indices they involve. Described in detail below.
 
 ## 🧪 How to Use the New Features
 
@@ -41,6 +42,9 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `MAXFRQ` |    Real | Maximum frequency in cm⁻¹ for which intensities will be calculated. Default: 4500.0.                                |
 | `DAVBUF` | Integer | Buffer size for the subspace dimension in the Davidson diagonalizer. There is a minimum limit internally set to DAVSTA times 20. Default: 4000. |
 | `EXCLUD` |  Mixed  | Excludes vibrational modes from the calculation before VSCF/VCI. Two sub-keyword forms: `EXCLUD auto <freq_cutoff>` removes every mode with a harmonic frequency (cm⁻¹) below `<freq_cutoff>` (real); `EXCLUD spec <mode1> <mode2> ...` (integers) removes exactly the listed mode indices. For `spec`, indices refer to **vibrational** modes only: a non-linear molecule with N atoms has 3N total modes, of which 3N−6 are vibrational after removing the 3 translations and 3 rotations, and the first vibrational mode is index 1 (not the first of the 3N raw modes). Default: not set (no exclusion). **⚠️ Does not currently work with Symmetry-Adapted VCI (SA-VCI, i.e. a point group other than C1).** |
+| `R3DIFF` | Integer | Set to 1 to zero every cubic force constant Φ_ijk with 3 distinct mode indices (i≠j≠k≠i), before VSCF/VCI/VPT2. Default: 0. |
+| `R4DIFF` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with 4 distinct mode indices, before VSCF/VCI/VPT2. Default: 0. |
+| `R4TRIP` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with exactly 3 distinct mode indices (the Φ_iijk-type patterns), before VSCF/VCI/VPT2. Default: 0. |
 
 ### Sum over States VPT2 (SoS VPT2)
 See: https://dx.doi.org/10.1021/acs.jpca.0c09526, J. Phys. Chem. A 2021, 125, 1301−1324'
@@ -56,6 +60,29 @@ The motivation for this route is practical rather than purely theoretical: the m
 Because this formulation assumes the basis states diagonalize the zero order (harmonic) Hamiltonian exactly, the code automatically switches the ground state modals to the harmonic oscillator basis whenever `RUNPT2` is nonzero, overriding whatever value `RUNSCF` was given in the input. In other words, requesting SoS VPT2 always runs on top of VCI@HO style modals, never VCI@VSCF ones, and you do not need to set `RUNSCF 0` yourself, it happens automatically.
 
 This sum over states construction differs from the standard, formally ordered VPT2 expression used by packages (which keeps only the diagonal quartic contribution at first order and the off diagonal cubic contribution at second order, dropping off diagonal quartic terms as higher order in the perturbation parameter). SoS VPT2 as implemented here keeps the off diagonal quartic contributions as well, so it is best thought of as a related but distinct second order treatment rather than a drop in replacement for standard VPT2 output.
+
+### Force-Field Term Exclusion by Index-Distinctness
+
+Force fields used here are truncated at fourth order and contain all cubic and quartic terms up to 4 distinct mode indices. Some other codes and workflows instead build (or are limited to) a reduced representation of the PES that neglects some or all of the higher-order mode-coupling terms. Neglecting these couplings almost always results in a wrong description of the vibrational states, so these keywords are provided primarily as a **diagnostic and comparison tool**, not as a recommended production setting.
+
+Three independent keywords control which coupling terms are zeroed, based purely on how many distinct mode indices a given force constant involves:
+
+* `R3DIFF 1` — zeros cubic terms Φ_ijk with all 3 indices distinct.
+* `R4DIFF 1` — zeros quartic terms Φ_ijkl with all 4 indices distinct.
+* `R4TRIP 1` — zeros quartic terms Φ_ijkl with exactly 3 distinct indices (the Φ_iijk-type patterns).
+
+They can be set independently or in any combination, e.g. setting all three together drops every cubic/quartic term with 3 or more distinct mode indices, keeping only terms with at most 2 distinct indices (Φ_iii, Φ_iiii, Φ_iij, Φ_iiij, Φ_ijjj, Φ_iijj).
+
+The exclusion is applied to `Potential_3`/`Potential_4` right after the degeneracy factors are applied and before the sparse inverted index is built, so any dropped terms are fully absent from every downstream routine — VSCF, VCI, and SoS VPT2 alike (`RUNPT2 1` reuses the same reduced `Potential_3`/`Potential_4` arrays). The number of zeroed cubic and quartic entries is reported to both stdout and `vscf.out`.
+
+**Note on `R4DIFF`:** ORCA performs a semi-quartic force field, where fully 4-distinct-index terms (Φ_ijkl) don't exist, and the ORCA reader doesn't even parse anything of that form. `R4DIFF` is kept for the future, in case force fields from other software with a genuine full quartic representation are supported later.
+
+**Why remove real coupling terms at all?** 
+
+* **Diagnosing SCF instability.** If VSCF diverges or oscillates, selectively zeroing term classes helps isolate which coupling is responsible (e.g. an unbounded or ill-conditioned Φ_iijj), before deciding whether the fix belongs in the force field itself or elsewhere.
+* **Numerical unreliability of mixed derivatives.** Force constants mixing 3+ distinct modes come from mixed finite-difference derivatives, which accumulate more numerical noise than pure single-mode (diagonal) derivatives — smaller signal, more cancellation error, more sensitivity to displacement step size. If a specific mixed term is noise-dominated rather than physically meaningful, removing it discards numerical error rather than real physics.
+* **Matching another method or code for benchmarking.** Some codes or reference datasets only ever compute a reduced-coupling force field; truncating your own the same way gives a fair, like-for-like comparison rather than crediting your calculation with physics the reference never had.
+* **Cost at large mode counts.** The number of 3-/4-distinct terms scales combinatorially with `N_modes`; for large systems, dropping a subset that is small and/or unreliable can be a pragmatic trade-off alongside the physical justification above.
 
 ### Example: Running a Water Test
 
@@ -96,8 +123,26 @@ To exclude specific modes (e.g. modes 1, 6, and 38):
 
 ⚠️ Only use `EXCLUD` with point group `C1` for now. Combining it with SA-VCI (any other point group) will give incorrect irrep assignments and, consequently, incorrect symmetry-restricted VCI results.
 
+### Example: Excluding Force-Field Terms by Index-Distinctness
+
+To zero only the fully off-diagonal cubic terms (Φ_ijk, 3 distinct indices):
+
+    R3DIFF 1
+
+To drop all cubic and quartic terms with 3 or more distinct mode indices, keeping only terms with at most 2 distinct indices:
+
+    R3DIFF 1
+    R4DIFF 1
+    R4TRIP 1
+
+This is primarily useful as a diagnostic: comparing full-force-field results against a reduced-term run isolates how much of a given spectral feature comes from genuine higher-mode coupling versus the lower-order terms. It is not a substitute for a converged calculation with the full force field.
 
 ## Changelog
+
+**29/08/2026**
+
+* Added `found_hessian`, `found_cubic`, `found_quartic`, `found_dipole1`, and `found_dipole2` logical flags to the `read_orca` subroutine (`read_orca.f90`), set as each corresponding block is located while parsing `basename.vpt2`. If any expected block (Hessian, cubic force constants, quartic force constants, first dipole derivatives, or second dipole derivatives) is missing from the file, the program now stops with a specific error message naming the exact header line that was not found, instead of failing later with an unrelated or unclear error.
+* Added the `R3DIFF`, `R4DIFF`, and `R4TRIP` keywords to `extra_input.txt` and a new `zero_offdiagonal_mode_terms` subroutine in `main.f90`: each independently zeros a specific class of cubic/quartic force constants (Φ_ijk with 3 distinct indices, Φ_ijkl with 4 distinct indices, and Φ_ijkl with exactly 3 distinct indices, respectively) before VSCF/VCI/VPT2. Reports the number of zeroed cubic and quartic entries to stdout and `vscf.out`.
 
 **27/08/2026**
 
