@@ -589,4 +589,71 @@ subroutine classify_quartic_terms(total_4, final_index_4, n_unique_4, &
 
     end subroutine classify_quartic_terms
 
+    subroutine zero_offdiagonal_mode_terms(N_modes, Potential_3, Potential_4, &
+                                        excl_3_alldiff, excl_4_alldiff, excl_4_threediff, &
+                                        n_zeroed_3, n_zeroed_4)
+  implicit none
+  integer, intent(in)    :: N_modes
+  real*8,  intent(inout) :: Potential_3(N_modes,N_modes,N_modes)
+  real*8,  intent(inout) :: Potential_4(N_modes,N_modes,N_modes,N_modes)
+  integer, intent(in)    :: excl_3_alldiff, excl_4_alldiff, excl_4_threediff
+  integer, intent(out)   :: n_zeroed_3, n_zeroed_4
+  integer :: i, j, k, l, n_distinct
+
+  n_zeroed_3 = 0
+  n_zeroed_4 = 0
+
+  if (excl_3_alldiff == 1) then
+    do i = 1, N_modes
+      do j = 1, N_modes
+        do k = 1, N_modes
+          if (i /= j .and. i /= k .and. j /= k) then
+            if (Potential_3(i,j,k) /= 0.d0) n_zeroed_3 = n_zeroed_3 + 1
+            Potential_3(i,j,k) = 0.d0
+          end if
+        end do
+      end do
+    end do
+  end if
+
+  if (excl_4_alldiff == 1 .or. excl_4_threediff == 1) then
+    do i = 1, N_modes
+      do j = 1, N_modes
+        do k = 1, N_modes
+          do l = 1, N_modes
+            n_distinct = count_distinct4(i, j, k, l)
+            if ((excl_4_alldiff   == 1 .and. n_distinct == 4) .or. &
+                (excl_4_threediff == 1 .and. n_distinct == 3)) then
+              if (Potential_4(i,j,k,l) /= 0.d0) n_zeroed_4 = n_zeroed_4 + 1
+              Potential_4(i,j,k,l) = 0.d0
+            end if
+          end do
+        end do
+      end do
+    end do
+  end if
+
+contains
+
+  integer function count_distinct4(a1, a2, a3, a4) result(nd)
+    integer, intent(in) :: a1, a2, a3, a4
+    integer :: arr(4)
+    logical :: seen(4)
+    integer :: a, b
+    arr  = (/ a1, a2, a3, a4 /)
+    seen = .false.
+    nd   = 0
+    do a = 1, 4
+      if (.not. seen(a)) then
+        nd = nd + 1
+        do b = a, 4
+          if (arr(b) == arr(a)) seen(b) = .true.
+        end do
+      end if
+    end do
+  end function count_distinct4
+
+end subroutine zero_offdiagonal_mode_terms
+
 end module combination
+

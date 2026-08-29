@@ -590,7 +590,7 @@ subroutine vpt2(Potential_3, Potential_4, N_modes, N_expansion, &
         VPT2_energies(sparse_m(i)) = U_energies(sparse_m(i)) + H_sparse(i)
      end if
   end do
-  H_threshold = 2.0*cm_to_hartree
+  H_threshold = 50.0*cm_to_hartree
   ! --- Second-order contribution from off-diagonal couplings ---   
   write(*,'(A)') ' Accumulating VPT2 second-order corrections ...'
   !$OMP PARALLEL DO PRIVATE(idx, m, n, H_val, denom) SCHEDULE(dynamic,256) DEFAULT(NONE) &

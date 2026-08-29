@@ -89,8 +89,8 @@ program main_vscf
   real*8, allocatable :: transition_energy_vscf(:)
   real*8, allocatable :: second_dipole_derivatives(:,:,:)
   integer, allocatable :: converged_state(:)
-  integer :: use_vci_at_vscf, write_vscf_ref_energy
-
+  integer :: use_vci_at_vscf, write_vscf_ref_energy, n_cycles_scf
+  
   !===========================================================================
   ! Inverted index arrays
   !===========================================================================
@@ -143,6 +143,12 @@ program main_vscf
   logical :: exclude_mode
   real*8 :: energy_excluded
 
+  !===========================================================================
+  ! Term exclusion by mode-distinctness
+  !===========================================================================
+  integer :: excl3_alldiff_int, excl4_alldiff_int, excl4_threediff_int
+  integer :: n_zeroed_3, n_zeroed_4
+
   !
   !
   integer :: run_vpt2
@@ -180,7 +186,18 @@ program main_vscf
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
   call read_intg('RUNPT2', run_vpt2, 0)
-  if (run_vpt2 /= 0) use_vci_at_vscf = 0 !we make the vpt2 theory based on harmonic oscilator...
+
+  excl3_alldiff_int = 0
+  excl4_alldiff_int = 0
+  excl4_threediff_int = 0
+
+  if (test == 0) then
+    call read_intg('R3DIFF', excl3_alldiff_int,   0)
+    call read_intg('R4DIFF', excl4_alldiff_int,   0)
+    call read_intg('R4TRIP', excl4_threediff_int, 0)
+  end if
+
+  if (run_vpt2 == 1) use_vci_at_vscf = 0 !we make the vpt2 theory based on harmonic oscilator...
 
   N_states = -1 !If less roots is needed, the code must run with davidson.
 
@@ -208,7 +225,16 @@ program main_vscf
     N_threads       = 1
     point_group_input = 'C1'                                          
     proj_cutoff     = 0.05d0                                          
-    max_iter_sci    = 0                                             
+    max_iter_sci    = 0   
+    exclude_mode = .false.  
+    open(101, file='vscf.out')
+    write(101,'(A)') '========================================'
+    write(101,'(A)') '                ViBra'
+    write(101,'(A)') '========================================'
+    write(101,'(A)') ' Centro Brasileiro de Pesquisas Fisicas '
+    write(101,'(A)') '       CBPF - Rio de Janeiro, Brasil'
+    write(101,'(A)') '----------------------------------------'
+    write(101,*)                                        
   end if
 
   conv_scf    = 10**conv_scf
@@ -263,7 +289,11 @@ program main_vscf
   modes_to_exclude = -1
   number_to_exclude = 0
   
-  call read_exclude(N_modes, HO_freq, exclude_mode, modes_to_exclude, number_to_exclude)
+  if (test == 0) then
+    call read_exclude(N_modes, HO_freq, exclude_mode, modes_to_exclude, number_to_exclude)
+  end if
+
+
   open(101, file='vscf.out')
   write(101,'(A)') '========================================'
   write(101,'(A)') '                ViBra'
@@ -420,6 +450,29 @@ program main_vscf
 
   call apply_degeneracy_factors(N_modes, Potential_3, Potential_4)
 
+  !TO REMOVE SOME OFF DIAGONAL CONTRIBUTIONS OF THE POTENTIAL
+
+
+  if (excl3_alldiff_int == 1 .or. excl4_alldiff_int == 1 .or. excl4_threediff_int == 1) then
+    call zero_offdiagonal_mode_terms(N_modes, Potential_3, Potential_4, &
+                                      excl3_alldiff_int, excl4_alldiff_int, excl4_threediff_int, &
+                                      n_zeroed_3, n_zeroed_4)
+    write(*,'(A)')          '----------------------------------------'
+    write(*,'(A)')          ' TERM EXCLUSION BY MODE-DISTINCTNESS'
+    if (excl3_alldiff_int == 1) write(*,'(A,I8,A)') ' Potential_3 (i/=j/=k):     ', n_zeroed_3, ' entries zeroed'
+    if (excl4_alldiff_int == 1 .or. excl4_threediff_int == 1) &
+                                 write(*,'(A,I8,A)') ' Potential_4:               ', n_zeroed_4, ' entries zeroed'
+    write(*,'(A)')          '----------------------------------------'
+    write(101,'(A)')        '----------------------------------------'
+    write(101,'(A)')        ' TERM EXCLUSION BY MODE-DISTINCTNESS'
+    if (excl3_alldiff_int == 1) write(101,'(A,I8,A)') ' Potential_3 (i/=j/=k):     ', n_zeroed_3, ' entries zeroed'
+    if (excl4_alldiff_int == 1 .or. excl4_threediff_int == 1) &
+                                 write(101,'(A,I8,A)') ' Potential_4:               ', n_zeroed_4, ' entries zeroed'
+    write(101,'(A)')        '----------------------------------------'
+  end if
+
+
+
   !===========================================================================
   ! Unit conversion
   !===========================================================================
@@ -511,7 +564,7 @@ if(use_vci_at_vscf == 1) then
 
   new_energy = 0.d0
   energy     = 0.d0
-
+  n_cycles_scf = 0
   do
     energy = new_energy
     write_vscf_ref_energy = write_vscf_ref_energy + 1
@@ -548,6 +601,11 @@ if(use_vci_at_vscf == 1) then
                                    energy - energy_ground
       exit
     end if
+    n_cycles_scf = n_cycles_scf + 1
+    if (n_cycles_scf .gt. 99) then
+      write(*,'(1A)') ' SCF CONVERGENCE FAILED, STOOPING. CHECK OUTPUT.'
+      stop
+    end if
   end do
   
   write(*,'(A)') '>> Calculating VSCF fundamentals '
@@ -577,7 +635,7 @@ if(use_vci_at_vscf == 1) then
       new_energy = 0.d0
       energy     = 0.d0
       write(101,'(1A20,1A20)') 'ENERGY(cm-1)', 'DELTA E'
-
+      n_cycles_scf = 0
       do
         energy = new_energy
         call constant_one_mode(Coeff, Potential_3, Potential_4,        &
@@ -616,6 +674,11 @@ if(use_vci_at_vscf == 1) then
           write(101,'(1A23,1I3,1A2,1F12.6)') 'HARMONIC ENERGY', i, ': ', &
               HO_freq(i)/cm_to_hartree
           exit
+        end if
+        n_cycles_scf = n_cycles_scf + 1
+        if (n_cycles_scf .gt. 99) then
+          write(*,'(1A)') ' SCF CONVERGENCE FAILED, STOOPING. CHECK OUTPUT.'
+          stop
         end if
       end do
     end do
@@ -714,7 +777,7 @@ end if !end checking if runs HO or VSCF
       end if 
       write(101,*)
       write(101,'(A)') '========================================'
-      write(101,'(A)') '            STARTING  VPT2              '
+      write(101,'(A)') '            STARTING  VCI               '
       write(101,'(A)') '========================================'
     else
       write(*,'(A)') '========================================'
@@ -990,7 +1053,7 @@ end if
     end if
     warning = 0
 
-
+  
   if(exclude_mode) write(*,'(1A)') 'WARNING: absolute energies do not include contributions from excluded modes. These must be added manually where required (e.g., for zero-point energy).'
   if(exclude_mode) write(*,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes (1/2 times sum of excluded frequencies, cm-1): ', energy_excluded/2
 
@@ -1004,3 +1067,4 @@ end if
   close(200)
 
 end program main_vscf
+

@@ -44,6 +44,7 @@ real*8  :: Vc, u, full_term_val
 real*8  :: dipole(N_modes, 3), step_multi_vec2(N_modes)
 real*8  :: cm_to_hartree
 
+
 ! Overlap cache
 real*8  :: overlap_cache(N_modes, 0:4)
 
@@ -212,6 +213,8 @@ do k = 1, N_modes
     end if
 
     new_coeff(k, :) = H(:, mode_excite(k)+1)
+  !  new_coeff(k, :) = scf_mix*H(:, mode_excite(k)+1) + (1.d0 - scf_mix)*coefficients(k, :)
+  !  new_coeff(k, :) = new_coeff(k, :) / sqrt(sum(new_coeff(k, :)**2))   
     total_energy = total_energy + eigenvalues(mode_excite(k)+1)
 end do
 

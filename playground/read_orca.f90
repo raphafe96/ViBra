@@ -28,7 +28,7 @@ subroutine read_orca(file, linear, vibrations, cubic, quartic, N_modes, save_dip
   integer :: index1, index2, index3, index4, N_modes, atom_k, mode_idx
   real*8 :: temp_val, intensity_value
   character(len=200) :: line
-  logical :: found_hessian
+  logical :: found_hessian, found_cubic, found_quartic, found_dipole1, found_dipole2
   real*8, allocatable :: frequencies(:), vibrations(:)
   real*8, allocatable :: eigenvectors(:,:), sqrt_mass(:,:)
   logical :: is_linear
@@ -60,6 +60,10 @@ cte = 1.d0
 
   ! Initialize
   found_hessian = .false.
+  found_cubic = .false.
+  found_quartic = .false.
+  found_dipole1 = .false.
+  found_dipole2 = .false.
   n_atoms = 0
   n_coords = 0
 
@@ -144,6 +148,7 @@ cte = 1.d0
         read(101, *) index1, index2, index3, temp_val
         cubic(index1+1, index2+1, index3+1) = temp_val
       end do
+      found_cubic = .true.
       write(*,'(1A30)') 'Reading cubic force constants'
     end if
     
@@ -162,6 +167,7 @@ cte = 1.d0
         if (io /= 0) exit
         quartic(index1+1, index2+1, index3+1, index3+1) = temp_val
       end do
+      found_quartic = .true.
       write(*,'(1A30)') 'Reading quartic force constants'
     end if
 
@@ -173,6 +179,7 @@ cte = 1.d0
         read(101, *) index1, index2, temp_val
         dipole_derivatives(index1+1, index2+1) = temp_val
       end do
+      found_dipole1 = .true.
       write(*,'(1A30)') 'Reading dipole derivatives'
     end if
 
@@ -184,6 +191,7 @@ cte = 1.d0
         read(101, *) index1, index2, index3, temp_val
         second_dipole(index1+1, index2+1, index3+1) = temp_val
       end do
+      found_dipole2 = .true.
       write(*,'(1A30)') 'Reading second dipole derivat.'
     end if
 
@@ -193,7 +201,27 @@ cte = 1.d0
 
   
   if (.not. found_hessian) then
-    write(*,*) '>> ERROR: Hessian not found in file!'
+    write(*,'(1A)') '>> ERROR: Hessian not found in file! NOT FOUND: # Hessian[i][j] in Eh/(bohr**2)'
+    stop
+  end if
+
+  if (.not. found_cubic) then
+    write(*,'(1A)') '>> ERROR: Cubic not found in file! NOT FOUND: # Cubic[i][j][k] force field in 1/cm'
+    stop
+  end if
+
+  if (.not. found_quartic) then
+    write(*,'(1A)') '>> ERROR: quartic not found in file! NOT FOUND: # Semi-quartic[i][j][k][k] force field in 1/cm'
+    stop
+  end if
+
+  if (.not. found_dipole1) then
+    write(*,'(1A)') '>> ERROR: dipole1 not found in file! NOT FOUND: # Dipole Derivatives[i][j] in (Eh*bohr)^1/2'
+    stop
+  end if
+
+  if (.not. found_dipole2) then
+    write(*,'(1A)') '>> ERROR: dipole2 not found in file! NOT FOUND: # 2nd Dipole Derivatives[NVib][threeN][xyz] in (Eh*bohr)^1/2'
     stop
   end if
   
