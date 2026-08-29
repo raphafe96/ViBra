@@ -142,7 +142,7 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 **29/08/2026**
 
 * Added `found_hessian`, `found_cubic`, `found_quartic`, `found_dipole1`, and `found_dipole2` logical flags to the `read_orca` subroutine (`read_orca.f90`), set as each corresponding block is located while parsing `basename.vpt2`. If any expected block (Hessian, cubic force constants, quartic force constants, first dipole derivatives, or second dipole derivatives) is missing from the file, the program now stops with a specific error message naming the exact header line that was not found, instead of failing later with an unrelated or unclear error.
-* Added the `R3DIFF`, `R4DIFF`, and `R4TRIP` keywords to `extra_input.txt` and a new `zero_offdiagonal_mode_terms` subroutine in `main.f90`: each independently zeros a specific class of cubic/quartic force constants (Φ_ijk with 3 distinct indices, Φ_ijkl with 4 distinct indices, and Φ_ijkl with exactly 3 distinct indices, respectively) before VSCF/VCI/VPT2. Reports the number of zeroed cubic and quartic entries to stdout and `vscf.out`.
+* Added the `R3DIFF`, `R4DIFF`, and `R4TRIP` keywords to `extra_input.txt` and a new `zero_offdiagonal_mode_terms` subroutine in `get_combination.f90`: each independently zeros a specific class of cubic/quartic force constants (Φ_ijk with 3 distinct indices, Φ_ijkl with 4 distinct indices, and Φ_ijkl with exactly 3 distinct indices, respectively) before VSCF/VCI/VPT2. Reports the number of zeroed cubic and quartic entries to stdout and `vscf.out`.
 
 **27/08/2026**
 
