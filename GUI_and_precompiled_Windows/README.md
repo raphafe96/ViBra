@@ -7,6 +7,10 @@
 5. Run `vscf_vci_gui.exe` to launch the main application.
 6. It may take a while to launch the Python GUI interfaces, few seconds. Be patient here.
 
+### 📖 Always check the main folder for the most recent manual
+
+The GUI includes a button to open the manual (available in both Portuguese and English). However, the manual version included in the GUI may be outdated because it was bundled at the time the GUI was last compiled. **Always check the main repository folder for the most recent version of the manual.**
+
 ## 🖥️ Main Application (vscf_vci_gui.exe)
 
 The main GUI provides input creation and execution of the Fortran engine. The interface is shown below:
@@ -57,18 +61,12 @@ This separate executable is used for spectral viewer:
 
 The viewer (`MainApplication`, Python 3, Matplotlib, 3Dmol.js) reads the three output files and provides a rich environment for analysis and comparison:
 
-- **Gaussian broadening:** each transition at frequency νₖ with intensity Iₖ is represented as  
-  S(ν) = Σₖ Iₖ exp[−(ν−νₖ)²/(2σ²)],  
-  with σ = FWHM/(2√(2 ln 2)). FWHM is adjustable via stepper and direct text entry.
-- **Temperature-dependent spectra:** for T > 0 K, VCI intensities are Boltzmann-weighted:  
-  Iₖᵉᶠᶠ = Iₖ (p₀ − pₖ), where pₖ = exp(−h c νₖ / k_B T)/Z and hc/k_B = 1.438777 cm·K.  
-  Temperature is adjustable from 0 to 950 K.
+- **Gaussian broadening:** each transition is represented as a Gaussian function with broadening options. 
+- **Temperature-dependent spectra:** for T > 0 K, VCI intensities are Boltzmann-weightet. Temperature is adjustable from 0 to 950 K.
 - **JCAMP-DX overlay:** experimental spectra in JCAMP-DX format (`.jdx`/`.dx`) can be loaded. Transmittance is automatically converted to absorbance, negative values are clipped, and the result is normalised.
-- **ALS baseline correction:** for experimental spectra exhibiting a sloping baseline, an Asymmetric Least Squares (ALS) algorithm estimates and subtracts a smooth baseline. The cost function  
-  Q(z) = Σᵢ wᵢ(yᵢ − zᵢ)² + λ‖Dz‖²  
-  is minimised iteratively, where D is the second-difference matrix. The smoothness parameter λ and asymmetry parameter p are adjustable via steppers with real-time redisplay.
-- **Peak inspection:** clicking a VCI peak label displays the frequency, intensity, and three leading CI coefficients with quantum-number assignments (e.g., "v₁ + 2v₃"). Buttons launch 3D normal-mode animations for any involved mode.
-- **Data export:** the displayed spectrum can be saved as a text file and as a 300 dpi PNG image.
+- **ALS baseline correction:** for experimental spectra exhibiting a sloping baseline, an Asymmetric Least Squares (ALS) algorithm estimates and subtracts a smooth baseline. 
+- **Peak inspection:** clicking a VCI peak label displays the frequency, intensity, and three leading CI coefficients with quantum-number assignments (e.g., "v₁ + 2v₃"). Buttons launch 3D normal-mode animations for any involved mode (only available when vscf.out is loaded together with intensities.txt).
+- **Data export:** the displayed spectrum can be saved as a text file and as PNG image.
 - **3D normal-mode animation:** sinusoidal displacement trajectories (60 frames, adjustable amplitude) are generated from `normal_mode.txt`, saved as JSON, and rendered via an auto-generated HTML page with embedded 3Dmol.js viewer supporting play/pause, frame slider, speed control, and adjustable rendering styles and atomic radii. If a symmetry-adapted VCI is performed, the symmetry elements can also be displayed. 
 
 
@@ -87,6 +85,3 @@ The viewer (`MainApplication`, Python 3, Matplotlib, 3Dmol.js) reads the three o
 
 The precompiled engine is built from the source code in [`source`](https://github.com/raphafe96/ViBra/tree/main/source). It uses the LAPACK/BLAS wrapper from Intel MKL and is compiled with the Intel Fortran compiler `ifx`, using heap arrays and `-O3` optimization.
 
-### 📖 Always check the main folder for the most recent manual
-
-The GUI includes a button to open the manual (available in both Portuguese and English). However, the manual version included in the GUI may be outdated because it was bundled at the time the GUI was last compiled. **Always check the main repository folder for the most recent version of the manual.**
