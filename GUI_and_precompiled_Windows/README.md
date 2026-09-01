@@ -7,6 +7,20 @@
 5. Run `vscf_vci_gui.exe` to launch the main application.
 6. It may take a while to launch the Python GUI interfaces, few seconds. Be patient here.
 
+## ⚠️ Important Notes
+
+### ⚙️ Precompiled Fortran Engine (vscf_vci.exe)
+
+- The Fortran engine is distributed separately because it can be updated frequently.
+- **Always check** that you have the latest version of `vscf_vci.exe` by consulting the repository.
+- You may also compile the engine yourself, especially if you wish to use new features present in the [`playground`](https://github.com/raphafe96/ViBra/tree/main/playground) folder.
+- Note: New input keywords introduced in the `playground` or source code may not yet be available in the GUI input generator. They will be added in future GUI versions.
+
+### 🔧 Compilation of vscf_vci.exe
+
+The precompiled engine is built from the source code in [`source`](https://github.com/raphafe96/ViBra/tree/main/source). It uses the LAPACK/BLAS wrapper from Intel MKL and is compiled with the Intel Fortran compiler `ifx`, using heap arrays and `-O3` optimization.
+
+
 ### 📖 Always check the main folder for the most recent manual
 
 The GUI includes a button to open the manual (available in both Portuguese and English). However, the manual version included in the GUI may be outdated because it was bundled at the time the GUI was last compiled. **Always check the main repository folder for the most recent version of the manual.**
@@ -71,17 +85,4 @@ The viewer (`MainApplication`, Python 3, Matplotlib, 3Dmol.js) reads the three o
 
 
   <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra2.png" alt="Main GUI - Vibra2" width="500"/>
-
-## ⚠️ Important Notes
-
-### ⚙️ Precompiled Fortran Engine (vscf_vci.exe)
-
-- The Fortran engine is distributed separately because it can be updated frequently.
-- **Always check** that you have the latest version of `vscf_vci.exe` by consulting the repository.
-- You may also compile the engine yourself, especially if you wish to use new features present in the [`playground`](https://github.com/raphafe96/ViBra/tree/main/playground) folder.
-- Note: New input keywords introduced in the `playground` or source code may not yet be available in the GUI input generator. They will be added in future GUI versions.
-
-### 🔧 Compilation of vscf_vci.exe
-
-The precompiled engine is built from the source code in [`source`](https://github.com/raphafe96/ViBra/tree/main/source). It uses the LAPACK/BLAS wrapper from Intel MKL and is compiled with the Intel Fortran compiler `ifx`, using heap arrays and `-O3` optimization.
 
