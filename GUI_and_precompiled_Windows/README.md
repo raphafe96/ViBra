@@ -15,15 +15,17 @@ The main GUI provides input creation and execution of the Fortran engine. The in
 
 The GUI automatically detects the presence of `vscf_vci.exe` in the same folder and allows you to run calculations directly from the interface.
 
+### 🌐 Language Setting
+
+If the GUI starts in Portuguese, it means the last language used was Portuguese. To switch to English, in the `vscf_vci_gui.exe` click the purple button labeled **"Idioma"** (which means "Language" in Portuguese) at the top right corner. This toggles the interface language.
+
 ## 📊 Visualization (visualization.exe)
 
 This separate executable is used for spectral and normal mode analysis. It offers two interfaces:
 
-1. **Spectral viewer**  
-   <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra1.png" alt="Spectral Viewer - Vibra1" width="600"/>
-
-2. **Normal mode animator**  
-   <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra2.png" alt="Normal Mode Animator - Vibra2" width="600"/>
+| Spectral Viewer | Normal Mode Animator |
+|-----------------|----------------------|
+| <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra1.png" alt="Spectral Viewer - Vibra1" width="300"/> | <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra2.png" alt="Normal Mode Animator - Vibra2" width="300"/> |
 
 ## ⚠️ Important Notes
 
@@ -41,7 +43,3 @@ The precompiled engine is built from the source code in [`source`](https://githu
 ### 📖 Always check the main folder for the most recent manual
 
 The GUI includes a button to open the manual (available in both Portuguese and English). However, the manual version included in the GUI may be outdated because it was bundled at the time the GUI was last compiled. **Always check the main repository folder for the most recent version of the manual.**
-
-### 🌐 Language Setting
-
-If the GUI starts in Portuguese, it means the last language used was Portuguese. To switch to English, in the vscf_vci_gui.exe click the purple button labeled **"Idioma"** (which means "Language" in Portuguese). This toggles the interface language.
