@@ -11,7 +11,7 @@
 
 The main GUI provides input creation and execution of the Fortran engine. The interface is shown below:
 
-![Main GUI - Vibra0](https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra0.png)
+![Main GUI - Vibra0](main/assets/Vibra0.png)
 
 The GUI automatically detects the presence of `vscf_vci.exe` in the same folder and allows you to run calculations directly from the interface.
 
