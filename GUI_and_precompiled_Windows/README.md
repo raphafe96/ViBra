@@ -51,7 +51,7 @@ The Fortran engine produces three output files, which can be utilized by the vis
 
 This separate executable is used for spectral viewer:
 
-<img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra0.png" alt="Main GUI - Vibra1" width="500"/>
+<img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra1.png" alt="Main GUI - Vibra1" width="500"/>
 
 ### 📈 Interactive Spectral Viewer
 
@@ -72,7 +72,7 @@ The viewer (`MainApplication`, Python 3, Matplotlib, 3Dmol.js) reads the three o
 - **3D normal-mode animation:** sinusoidal displacement trajectories (60 frames, adjustable amplitude) are generated from `normal_mode.txt`, saved as JSON, and rendered via an auto-generated HTML page with embedded 3Dmol.js viewer supporting play/pause, frame slider, speed control, and adjustable rendering styles and atomic radii. If a symmetry-adapted VCI is performed, the symmetry elements can also be displayed. 
 
 
-  <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra0.png" alt="Main GUI - Vibra3" width="500"/>
+  <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra3.png" alt="Main GUI - Vibra3" width="500"/>
 
 ## ⚠️ Important Notes
 
