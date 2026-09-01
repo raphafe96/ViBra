@@ -11,7 +11,7 @@
 
 The main GUI provides input creation and execution of the Fortran engine. The interface is shown below:
 
-![Main GUI - Vibra0](https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra0.png)
+<img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra0.png" alt="Main GUI - Vibra0" width="600"/>
 
 The GUI automatically detects the presence of `vscf_vci.exe` in the same folder and allows you to run calculations directly from the interface.
 
@@ -20,10 +20,10 @@ The GUI automatically detects the presence of `vscf_vci.exe` in the same folder 
 This separate executable is used for spectral and normal mode analysis. It offers two interfaces:
 
 1. **Spectral viewer**  
-   ![Spectral Viewer - Vibra1](https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra1.png)
+   <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra1.png" alt="Spectral Viewer - Vibra1" width="600"/>
 
 2. **Normal mode animator**  
-   ![Normal Mode Animator - Vibra2](https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra2.png)
+   <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra2.png" alt="Normal Mode Animator - Vibra2" width="600"/>
 
 ## ⚠️ Important Notes
 
@@ -45,4 +45,3 @@ The GUI includes a button to open the manual (available in both Portuguese and E
 ### 🌐 Language Setting
 
 If the GUI starts in Portuguese, it means the last language used was Portuguese. To switch to English, in the vscf_vci_gui.exe click the purple button labeled **"Idioma"** (which means "Language" in Portuguese). This toggles the interface language.
-
