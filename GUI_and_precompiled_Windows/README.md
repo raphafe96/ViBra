@@ -9,19 +9,19 @@
 
 ## ⚠️ Important Notes
 
-### ⚙️ Precompiled Fortran Engine (vscf_vci.exe)
+###  Precompiled Fortran Engine (vscf_vci.exe)
 
 - The Fortran engine is distributed separately because it can be updated frequently.
 - **Always check** that you have the latest version of `vscf_vci.exe` by consulting the repository.
 - You may also compile the engine yourself, especially if you wish to use new features present in the [`playground`](https://github.com/raphafe96/ViBra/tree/main/playground) folder.
 - Note: New input keywords introduced in the `playground` or source code may not yet be available in the GUI input generator. They will be added in future GUI versions.
 
-### 🔧 Compilation of vscf_vci.exe
+###  Compilation of vscf_vci.exe
 
 The precompiled engine is built from the source code in [`source`](https://github.com/raphafe96/ViBra/tree/main/source). It uses the LAPACK/BLAS wrapper from Intel MKL and is compiled with the Intel Fortran compiler `ifx`, using heap arrays and `-O3` optimization.
 
 
-### 📖 Always check the main folder for the most recent manual
+###  Always check the main folder for the most recent manual
 
 The GUI includes a button to open the manual (available in both Portuguese and English). However, the manual version included in the GUI may be outdated because it was bundled at the time the GUI was last compiled. **Always check the main repository folder for the most recent version of the manual.**
 
@@ -33,11 +33,11 @@ The main GUI provides input creation and execution of the Fortran engine. The in
 
 The GUI automatically detects the presence of `vscf_vci.exe` in the same folder and allows you to run calculations directly from the interface.
 
-### 🌐 Language Setting
+###  Language Setting
 
 If the GUI starts in Portuguese, it means the last language used was Portuguese. To switch to English, in the `vscf_vci_gui.exe` click the purple button labeled **"Idioma"** (which means "Language" in Portuguese) at the top right corner. This toggles the interface language.
 
-### 🧩 Graphical User Interface (Keyword Input)
+###  Graphical User Interface (Keyword Input)
 
 The GUI simplifies job preparation. The user navigates to the ORCA `.vpt2` file; the working directory is set automatically. A modal dialog collects all keywords, validates their ranges with tooltip guidance, and writes `input_vscf.txt`. The Fortran executable is launched as a subprocess in a background thread, with real-time output streaming to a scrollable panel. A stop button terminates a running job, and the panel supports save and clear operations.
 
@@ -57,7 +57,7 @@ The GUI simplifies job preparation. The user navigates to the ORCA `.vpt2` file;
 | `PROJCT` | real | Projection cutoff for symmetry detection (Å). |
 | `MAXSCI` | int | N_sel for S-VCI. Default: 100.<br>Usage: `MAXSCI [N] [mode] [ref]`<br>• N > 0, mode = auto: iterative selection with CI reference (ref = s, d, t, q).<br>• N > 0, mode = list: iterative selection with list reference, no ref needed.<br>• N = 0: full VCI (no S-VCI), no mode and no ref needed.<br>• N = 0, mode = list: full VCI using user-provided state list, no ref needed. |
 
-### 📁 Output Files
+###  Output Files
 
 The Fortran engine produces three output files, which can be utilized by the visualisation interface:
 
@@ -71,7 +71,7 @@ This separate executable is used for spectral viewer:
 
 <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra1.png" alt="Main GUI - Vibra1" width="500"/>
 
-### 📈 Interactive Spectral Viewer
+###  Interactive Spectral Viewer
 
 The viewer (`MainApplication`, Python 3, Matplotlib, 3Dmol.js) reads the three output files and provides a rich environment for analysis and comparison:
 
