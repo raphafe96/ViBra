@@ -479,9 +479,9 @@ if (check_list == 1) then
 
     close(11)
 
-    do m = 1, total_combinations ! Total_combinations in this case is just the number of combinations from the list, for the reference CI state, combination2 is for the all combinations
+    do m = 1, total_combinations2 ! Total_combinations in this case is just the number of combinations from the list, for the reference CI state, combination2 is for the all combinations
         do n = 1, n_states_list
-            if (all(vec_combinations(m, :) == vec_combinations(n, :))) then
+            if (all(vec_combinations2(m, :) == vec_combinations(n, :))) then
                 is_ref(m)      = .true.
                 is_selected(m) = .true.
                 n_ref          = n_ref + 1
