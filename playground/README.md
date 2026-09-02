@@ -10,6 +10,8 @@ This does not affect the overall trend of the results presented in the arXiv pap
 
 ✅ **Note:** The **auto mode** for Selected VCI (`MAXSCI N auto s/d/t/q`) is **working as intended** and is **not affected** by the list‑mode parsing bug.
 
+Update: the Zenodo repository and the source code have been replaced with a working version/correct results.
+
 ## ✨ What's New in This Version
 
 The playground currently introduces the following new and experimental features:
