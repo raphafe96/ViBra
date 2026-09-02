@@ -27,6 +27,10 @@ The GUI includes a button to open the manual (available in both Portuguese and E
 
 ## 🖥️ Main Application (vscf_vci_gui.exe)
 
+###  Monitor resolution
+
+To properly use all features, you may need a display with a resolution of at least 1920 × 1080 pixels and no display scaling (for example, 125% scaling - DO NOT USE THAT). Other display configurations may also work, but the interface may appear smaller or incorrectly scaled. Please note that the Input File Creation button may be hidden when using lower resolutions. If this happens, please create your input file manually. We are working on improving this behavior in a future update.
+
 The main GUI provides input creation and execution of the Fortran engine. The interface is shown below:
 
 <img src="https://raw.githubusercontent.com/raphafe96/ViBra/main/assets/Vibra0.png" alt="Main GUI - Vibra0" width="500"/>
