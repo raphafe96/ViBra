@@ -9,7 +9,7 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
 > **Citation**: If you use ViBra in your research, please refer to:  
 > **(https://doi.org/10.48550/arXiv.2607.22850)**  
 >  
-> **Theory and Manual**: [📖 Read (English)](manual.pdf) | [📖 Ler (Português)](manual_pt.pdf)
+> **Theory and Manual**: [📖 Read (English)](manual.pdf) 
 
 ## ⚠️ Important Warning: Selected VCI with List Mode
 
