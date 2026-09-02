@@ -15,6 +15,8 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
 
 When the Selected VCI is used with list mode (`MAXSCI N list`), a severe bug was found in the parsing of the user-provided state list. This does not affect the overall trend of the results presented, but rather the exact numerical values. We are waiting for further validation before replacing the arXiv paper, updating the Zenodo repository, updating the source folder and updating the pre compiled version. In the meantime, a working version (seems to be working properly now, but again, it is being tested) and further explanation can be found in the [`playground`](playground/)folder.
 
+Update: the Zenodo repository and the source code have been replaced with a working version/correct results.
+
 ## ✨ Main Features
 
 * Harmonic oscillator, VSCF, VCI, Selected VCI, and Symmetry-Adapted VCI calculations
