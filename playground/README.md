@@ -50,6 +50,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `R4DIFF` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with 4 distinct mode indices, before VSCF/VCI/VPT2. Default: 0. |
 | `R4TRIP` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with exactly 3 distinct mode indices (the Φ_iijk-type patterns), before VSCF/VCI/VPT2. Default: 0. |
 | `MIXSCF` |    Real | Mix of VSCF coefficients. C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. Default: 0.5. |
+| `MAXSCF` | Integer | Max number of VSCF steps. Default 100 |
 
 ### Sum over States VPT2 (SoS VPT2)
 See: https://dx.doi.org/10.1021/acs.jpca.0c09526, J. Phys. Chem. A 2021, 125, 1301−1324'
@@ -147,6 +148,7 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 **07/09/2026**
 
 * Added the `MIXSCF` keyword to `extra_input.txt` (real, default 0.5) to control the mixing of VSCF modal coefficients between successive SCF iterations. The new coefficients are combined with the previous ones as `(1 - MIXSCF) * old + MIXSCF * new`, improving convergence stability for difficult cases.
+* Added the `MAXSCF` keyword to `extra_input.txt` (real, default 0.5) to control the number of VSCF steps.
 * Added phase alignment of eigenvectors before mixing in the `constant_one_mode` subroutine to prevent sign flips between SCF cycles.
 * Adjusted the printing of VSCF excited states in `vscf.out`.
 * Adjusted the initial coefficients of excited state VCSF (fundamental transitions).
