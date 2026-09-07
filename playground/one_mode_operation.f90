@@ -11,7 +11,7 @@ subroutine constant_one_mode(coefficients, Potential_3, Potential_4, N_modes, N_
     total_3, total_4, &
     Potential_3_vec, Potential_4_vec, &
     final_index_3, count_index_3, check3, &
-    final_index_4, count_index_4, check4, write_vscf_ref)
+    final_index_4, count_index_4, check4, write_vscf_ref, scf_mix, sum_ref_energy)
 implicit none
 
 integer,  intent(in) :: N_modes, N_expansion, write_on_out, calc_intensity, N_threads
@@ -43,6 +43,8 @@ real*8  :: Hamiltonian(N_modes, N_expansion, N_expansion)
 real*8  :: Vc, u, full_term_val
 real*8  :: dipole(N_modes, 3), step_multi_vec2(N_modes)
 real*8  :: cm_to_hartree
+real*8  :: scf_mix, ov
+real*8  :: vec_aligned(N_expansion), sum_ref_energy
 
 
 ! Overlap cache
@@ -185,8 +187,22 @@ do i = 1, N_expansion
 end do
 
 if (write_vscf_ref == 1) then
-    write(*,'(1A, 1F12.4)') ' Energy starting point: ', (sum(Hamiltonian(:, 1, 1))-Vc*real(N_modes-1))/cm_to_hartree
-    write(101,'(1A, 1F12.4)') ' Energy starting point: ', (sum(Hamiltonian(:, 1, 1))-Vc*real(N_modes-1))/cm_to_hartree
+    sum_ref_energy = 0.d0
+
+    
+    do i = 1, N_modes
+        sum_ref_energy = sum_ref_energy + Hamiltonian(i, mode_excite(i)+1, mode_excite(i)+1)
+    end do
+
+        sum_ref_energy = (sum_ref_energy-Vc*real(N_modes-1))/cm_to_hartree
+    
+    write(*,'(1A, 1F12.4)') ' Energy starting point: ', sum_ref_energy
+    write(101,'(1A, 1F12.4)') ' Energy starting point: ', sum_ref_energy
+    write(101,'(1A20,1A20)') 'ENERGY(cm-1)', 'DELTA E'
+
+
+  !  write(*,'(1A, 1F12.4)') ' Energy starting point: ', (sum(Hamiltonian(:, 1, 1))-Vc*real(N_modes-1))/cm_to_hartree
+  !  write(101,'(1A, 1F12.4)') ' Energy starting point: ', (sum(Hamiltonian(:, 1, 1))-Vc*real(N_modes-1))/cm_to_hartree
 end if
 
 do k = 1, N_modes
@@ -212,9 +228,21 @@ do k = 1, N_modes
         write(101,*)
     end if
 
-    new_coeff(k, :) = H(:, mode_excite(k)+1)
+  !  new_coeff(k, :) = H(:, mode_excite(k)+1)
   !  new_coeff(k, :) = scf_mix*H(:, mode_excite(k)+1) + (1.d0 - scf_mix)*coefficients(k, :)
   !  new_coeff(k, :) = new_coeff(k, :) / sqrt(sum(new_coeff(k, :)**2))   
+
+
+      
+    vec_aligned(:) = H(:, mode_excite(k)+1)
+
+    ov = dot_product( vec_aligned, coefficients(k,:) )
+    if (ov < 0.0d0) vec_aligned = -vec_aligned 
+    new_coeff(k,:) = (1.0d0 - scf_mix) * coefficients(k,:) &
+                   +         scf_mix   * vec_aligned
+    new_coeff(k,:) = new_coeff(k,:) / sqrt( dot_product(new_coeff(k,:), new_coeff(k,:)) )
+
+
     total_energy = total_energy + eigenvalues(mode_excite(k)+1)
 end do
 
@@ -224,11 +252,15 @@ if (calc_intensity == 1) then
     dipole = 0.d0
     step_multi_vec2 = 1.d0
 
+    !loop 1: it computes the overlaps. Since we are considering coefficients from different VSCF calculations, with different mean fields, these overlaps must be explicitly calculated.
+    !double sum is not needed because with p = 0, inly diagonal term remains and the matrix remaining is the identity.
+
+
     do ii = 1, N_modes
         mid_integral = 0.d0
         do mu = 1, N_expansion
             mid_integral = mid_integral &
-                + full_coef(ii, 1, mu)*new_coeff(ii,mu)*store_integrals(ii, mu, mu, 0)
+                + full_coef(ii, 1, mu)*new_coeff(ii,mu)*store_integrals(ii, mu, mu, 0) !This overlap is one anyway, I will keep just to match the equations. These loops are inexpensive.
         end do
 
         do jj = 1, N_modes
@@ -237,6 +269,8 @@ if (calc_intensity == 1) then
             end if
         end do
     end do
+
+    !Loop 2: computes the actual dipole operator, double sum is necessary, because with p = 1, some off diagonal terms remain.
 
     do ii = 1, N_modes
         do mu = 1, N_expansion
@@ -248,9 +282,50 @@ if (calc_intensity == 1) then
                     * step_multi_vec2(ii)
             end do
         end do
+       ! dipole(ii, :) = dipole(ii, :)*step_multi_vec2(ii) we could use the dipole multiplication outside of the loop. ALtough inside represents more operations, this is how it was firtly done, so I want to keep it. These loops are extremaly cheap anyway.
     end do
 
+! Sign invariance of IR intensity with respect to arbitrary phases from diagonalization:
+!
+! Suppose we multiply all coefficients of mode 1 in the excited state by -1:
+!   new_coeff(1,:) -> -new_coeff(1,:)
+!
+! This is equivalent to changing the sign of the excited-state modal for mode 1.
+! We now trace the effect on the transition dipole.
+!
+! --- First loop: building overlap products (step_multi_vec2) ---
+! For each mode ii, mid_integral = <phi_ii(0)|phi_ii(n_ii)> (and the sum (the loop1) appear because of the VSCF modals).
+! When ii = 1: mid_integral changes sign (because new_coeff(1,:) is flipped).
+!   This mid_integral is multiplied into step_multi_vec2(jj) for all jj /= 1.
+!   Hence step_multi_vec2(2..N_modes) acquire a minus sign.
+!   step_multi_vec2(1) is NOT multiplied by its own overlap, so it remains unchanged here.
+! When ii is any other mode (say 2):
+!   Its mid_integral is built from new_coeff(2,:) (unchanged), but it also contains no factor from mode 1.
+!   Thus mid_integral for ii/=1 is unchanged.
+!   This mid_integral is then multiplied into step_multi_vec2(1), but since mid_integral is unchanged,
+!   step_multi_vec2(1) also remains unchanged at this stage.
+! 
+! >>>>> Overall after the first loop:
+!   - step_multi_vec2(1) is unchanged.
+!   - step_multi_vec2(j) for j /= 1 has flipped sign.
+!
+! --- Second loop: assembling dipole contributions ---
+! For mode 1:
+!   The active integral uses new_coeff(1,:), which is flipped, so the sum over mu,nu
+!   gives the opposite sign. Therefore dipole(1,:) changes sign. But remember, step_multi_vec2(1) is unchanged, so it DOES NOT double flip.
+! For any other mode j /= 1:
+!   The active integral uses new_coeff(j,:) (unchanged), so the sum over mu,nu is unchanged.
+!   But it is multiplied by step_multi_vec2(j), which has flipped sign.
+!   Therefore dipole(j,:) also changes sign.
+!
+! Hence every row of dipole changes sign, so the total dipole vector M = sum(dipole(:,1:3))
+! changes sign globally: M -> -M.
+!
+! The intensity is proportional to |M|^2, so (-M)^2 = M^2 and the intensity is unchanged.
+! This argument holds for any mode whose coefficients are flipped, not just mode 1.
+
     intensity = ((sum(dipole(:, 1)))**2 + (sum(dipole(:, 2)))**2 + (sum(dipole(:, 3)))**2)*2000.
+
 end if 
 
 end subroutine constant_one_mode

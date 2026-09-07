@@ -51,6 +51,12 @@ program main_vscf
   ! the program skip the first 6, and read the rest, but in a full list in order. The list has to adapt
   ! init_symmetry precisa receber a lista de modos excluídos (ou a lista list_new_modes) para filtrar mode_irrep na mesma ordem usada pelo resto do programa:
 
+
+  !Updates 02/09/2026
+  ! added a guard to avoid list + remove modes. If they are used together, the program will read the list up to the number of remaining modes and will sillently produce wrong results. The list must be reordered after mode exclusion.
+  ! added a conditional to not use symmetry adapted VCI when mode is equal to list. 
+
+
   !===========================================================================
   ! Scalar integers
   !===========================================================================
@@ -90,6 +96,8 @@ program main_vscf
   real*8, allocatable :: second_dipole_derivatives(:,:,:)
   integer, allocatable :: converged_state(:)
   integer :: use_vci_at_vscf, write_vscf_ref_energy, n_cycles_scf
+  real*8 :: mix_term_vscf
+  real*8 :: ref_energy
   
   !===========================================================================
   ! Inverted index arrays
@@ -186,6 +194,12 @@ program main_vscf
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
   call read_intg('RUNPT2', run_vpt2, 0)
+  call read_real('MIXSCF', mix_term_vscf, 0.5d0)
+
+  if (mix_term_vscf .gt. 1.0d0 .or. mix_term_vscf .lt. 0.1d0) then
+    write (*,*) ' ERROR: MIXSCF allowed is between 0.1 and 1.0'
+    stop
+  end if
 
   excl3_alldiff_int = 0
   excl4_alldiff_int = 0
@@ -575,12 +589,18 @@ if(use_vci_at_vscf == 1) then
         total_3, total_4,                                               &
         Potential_3_vec, Potential_4_vec,                               &
         final_index_3, count_index_3, check3,                          &
-        final_index_4, count_index_4, check4, write_vscf_ref_energy)
+        final_index_4, count_index_4, check4, write_vscf_ref_energy, mix_term_vscf, ref_energy)
 
     Coeff(:,:) = new_coeff(:,:)
     delta_e    = new_energy - energy
-    write(*,'(2F20.6)') new_energy, delta_e
-    write(101,'(2F20.6)') new_energy, delta_e
+
+    if (n_cycles_scf == 0) then
+      write(*,'(2F20.6)') new_energy,  new_energy - ref_energy
+      write(101,'(2F20.6)') new_energy, new_energy - ref_energy
+    else
+      write(*,'(2F20.6)') new_energy, delta_e
+      write(101,'(2F20.6)') new_energy, delta_e
+    end if
 
     if (abs(delta_e) < convergence) then
       call constant_one_mode(Coeff, Potential_3, Potential_4,          &
@@ -590,7 +610,7 @@ if(use_vci_at_vscf == 1) then
           total_3, total_4,                                             &
           Potential_3_vec, Potential_4_vec,                             &
           final_index_3, count_index_3, check3,                        &
-          final_index_4, count_index_4, check4, write_vscf_ref_energy)
+          final_index_4, count_index_4, check4, write_vscf_ref_energy, mix_term_vscf, ref_energy)
       energy_ground = new_energy
       write(*,'(2F20.6)') new_energy, new_energy - energy
       write(*,'(1A)') '>>>>>>>> CONVERGENCE REACHED'
@@ -598,12 +618,12 @@ if(use_vci_at_vscf == 1) then
       write(101,'(1A)') '>>>>>>>> CONVERGENCE REACHED'
       write(101,'(1A28,1F12.6)') 'STATE ENERGY (cm-1): ',      new_energy
       write(101,'(1A28,1F12.6)') 'TRANSITION ENERGY (cm-1): ', &
-                                   energy - energy_ground
+                                   new_energy - energy_ground
       exit
     end if
     n_cycles_scf = n_cycles_scf + 1
     if (n_cycles_scf .gt. 99) then
-      write(*,'(1A)') ' SCF CONVERGENCE FAILED, STOOPING. CHECK OUTPUT.'
+      write(*,'(1A)') ' GROUND STATE SCF CONVERGENCE FAILED, STOP. CHECK OUTPUT.'
       stop
     end if
   end do
@@ -615,13 +635,16 @@ if(use_vci_at_vscf == 1) then
   contar = 0
   intensities_vscf = 0.d0
 
-  do j = 1, 1
     do i = 1, N_modes
-    write_vscf_ref_energy = 0
       contar = contar + 1
-      Coeff(:,:) = 0.001d0
+      Coeff(:,:) = 0.00d0
       mode_excite    = 0
-      mode_excite(i) = j
+      mode_excite(i) = 1
+
+      do k = 1, N_modes
+        if (k==i) Coeff(k,2) = 1.d0
+        if (k/=i) Coeff(k,1) = 1.d0
+      end do
 
      ! write(*,*)
      ! write(*,'(A)') '----------------------------------------'
@@ -634,9 +657,10 @@ if(use_vci_at_vscf == 1) then
 
       new_energy = 0.d0
       energy     = 0.d0
-      write(101,'(1A20,1A20)') 'ENERGY(cm-1)', 'DELTA E'
       n_cycles_scf = 0
       do
+        write_vscf_ref_energy = 0
+        if(n_cycles_scf == 0) write_vscf_ref_energy = 1
         energy = new_energy
         call constant_one_mode(Coeff, Potential_3, Potential_4,        &
             N_modes, N_expansion, HO_freq, new_coeff, store_integrals, &
@@ -645,11 +669,16 @@ if(use_vci_at_vscf == 1) then
             total_3, total_4,                                           &
             Potential_3_vec, Potential_4_vec,                           &
             final_index_3, count_index_3, check3,                      &
-            final_index_4, count_index_4, check4, write_vscf_ref_energy)
+            final_index_4, count_index_4, check4, write_vscf_ref_energy, mix_term_vscf, ref_energy)
 
         Coeff(:,:) = new_coeff(:,:)
         delta_e    = new_energy - energy
-        write(101,'(2F20.6)') new_energy, delta_e
+
+        if (n_cycles_scf == 0) then
+          write(101,'(2F20.6)') new_energy, new_energy - ref_energy
+        else
+          write(101,'(2F20.6)') new_energy, delta_e
+        end if
 
         if (abs(delta_e) < convergence) then
           call constant_one_mode(Coeff, Potential_3, Potential_4,      &
@@ -660,7 +689,7 @@ if(use_vci_at_vscf == 1) then
               total_3, total_4,                                         &
               Potential_3_vec, Potential_4_vec,                         &
               final_index_3, count_index_3, check3,                    &
-              final_index_4, count_index_4, check4, write_vscf_ref_energy)
+              final_index_4, count_index_4, check4, write_vscf_ref_energy, mix_term_vscf, ref_energy)
           converged_state(contar) = 1
           transition_energy_vscf(contar) = new_energy - energy_ground
           write(101,'(2F20.6)') new_energy, delta_e
@@ -677,12 +706,11 @@ if(use_vci_at_vscf == 1) then
         end if
         n_cycles_scf = n_cycles_scf + 1
         if (n_cycles_scf .gt. 99) then
-          write(*,'(1A)') ' SCF CONVERGENCE FAILED, STOOPING. CHECK OUTPUT.'
+          write(*,'(1A, I14)') ' SCF CONVERGENCE FAILED, STOP. CHECK OUTPUT. VIB MODE: ', i
           stop
         end if
       end do
     end do
-  end do
 
   !--- Write VSCF intensities ---
   n = 0
@@ -721,6 +749,7 @@ end if !end checking if runs HO or VSCF
   block
     logical :: nm_exists
 
+
     !--- Write the point group the user specified in the input file ---
     open(12, file='point_group.txt', status='replace')
       write(12,'(A)') trim(point_group_input)
@@ -728,7 +757,7 @@ end if !end checking if runs HO or VSCF
 
     inquire(file='normal_mode.txt', exist=nm_exists)
     !nm_exists = .true.
-    if (nm_exists .and. point_group_input /= 'C1') then
+    if (nm_exists .and. point_group_input /= 'C1' .and. sci_mode /= 'list') then
       write(*,'(A)') '========================================'
       write(*,'(A)') ' Found normal_mode.txt'
       write(*,'(A,A)') ' Point group from input: ', trim(point_group_input)
@@ -743,8 +772,8 @@ end if !end checking if runs HO or VSCF
       close(102)
       use_symmetry = 1
     else
-      write(*,'(A)') ' normal_mode.txt not found: symmetry disabled.'
-      write(101,'(A)') ' Symmetry disabled (normal_mode.txt missing).'
+      write(*,'(A)') ' Symmetry disabled. Point group C1 or normal_mode.txt not found.'
+      write(101,'(A)') ' Symmetry disabled. Point group C1 or normal_mode.txt not found.'
     end if
   end block
 
@@ -918,6 +947,12 @@ end if
     if (exclude_mode == .true. .and. point_group_input /= 'C1') then
       write(*,*)
       write(*,'(A)') 'ERROR: NOT YET IMPLEMENTED TO USE SA-VCI and EXCLUD, change to normal VCI or Selected VCI'
+      stop
+    end if
+
+    if (exclude_mode == .true. .and. sci_mode == 'list') then
+      write(*,*)
+      write(*,'(A)') 'ERROR: NOT YET IMPLEMENTED TO USE list and EXCLUD, change to auto'
       stop
     end if
     !=========================================================================
