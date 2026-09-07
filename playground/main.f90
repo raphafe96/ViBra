@@ -98,6 +98,7 @@ program main_vscf
   integer :: use_vci_at_vscf, write_vscf_ref_energy, n_cycles_scf
   real*8 :: mix_term_vscf
   real*8 :: ref_energy
+  integer :: max_scf_steps
   
   !===========================================================================
   ! Inverted index arrays
@@ -195,9 +196,15 @@ program main_vscf
   call read_intg('RUNH2O', test, 0)
   call read_intg('RUNPT2', run_vpt2, 0)
   call read_real('MIXSCF', mix_term_vscf, 0.5d0)
+  call read_intg('MAXSCF', max_scf_steps, 100)
 
   if (mix_term_vscf .gt. 1.0d0 .or. mix_term_vscf .lt. 0.1d0) then
     write (*,*) ' ERROR: MIXSCF allowed is between 0.1 and 1.0'
+    stop
+  end if
+
+  if (max_scf_steps .gt. 1000 .or. max_scf_steps .lt. 1) then
+  write (*,*) ' ERROR: MAXSCF allowed is between 1 and 1000'
     stop
   end if
 
@@ -622,7 +629,7 @@ if(use_vci_at_vscf == 1) then
       exit
     end if
     n_cycles_scf = n_cycles_scf + 1
-    if (n_cycles_scf .gt. 99) then
+    if (n_cycles_scf .gt. max_scf_steps - 1) then
       write(*,'(1A)') ' GROUND STATE SCF CONVERGENCE FAILED, STOP. CHECK OUTPUT.'
       stop
     end if
@@ -705,9 +712,10 @@ if(use_vci_at_vscf == 1) then
           exit
         end if
         n_cycles_scf = n_cycles_scf + 1
-        if (n_cycles_scf .gt. 99) then
-          write(*,'(1A, I14)') ' SCF CONVERGENCE FAILED, STOP. CHECK OUTPUT. VIB MODE: ', i
-          stop
+        if (n_cycles_scf .gt. max_scf_steps - 1) then
+          write(*,'(1A, I14)') ' SCF CONVERGENCE FAILED. CHECK OUTPUT. VIB MODE: ', i
+         ! stop
+         exit
         end if
       end do
     end do
