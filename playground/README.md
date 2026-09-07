@@ -23,7 +23,7 @@ The playground currently introduces the following new and experimental features:
 - **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI/VPT calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. **This currently does not work for Symmetry-Adapted VCI (SA-VCI)** — see the keyword description and warning below.
 - **Sum over States VPT2 (SoS VPT2)**: A way to obtain anharmonic energies without a full VCI diagonalization, using the existing VCI Hamiltonian kernel. Described in detail below.
 - **Force-field term exclusion by index-distinctness**: Possibility to zero out specific cubic/quartic force constants before VSCF/VCI/VPT2, based on how many distinct mode indices they involve. Described in detail below.
-- **Improved VSCF convergence**: Controls the mixing of VSCF modal coefficients between successive SCF iterations.  In each cycle, the new coefficients `C_new` (obtained from diagonalising the effective one-mode Hamiltonian) are combined with the previous coefficients `C_old` as: C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new
+- **Improved VSCF convergence**: Controls the mixing of VSCF modal coefficients between successive SCF iterations.  In each cycle, the new coefficients `C_new` (obtained from diagonalising the effective one-mode Hamiltonian) are combined with the previous coefficients `C_old` as: C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. 
 
 
 ## 🧪 How to Use the New Features
@@ -49,7 +49,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `R3DIFF` | Integer | Set to 1 to zero every cubic force constant Φ_ijk with 3 distinct mode indices (i≠j≠k≠i), before VSCF/VCI/VPT2. Default: 0. |
 | `R4DIFF` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with 4 distinct mode indices, before VSCF/VCI/VPT2. Default: 0. |
 | `R4TRIP` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with exactly 3 distinct mode indices (the Φ_iijk-type patterns), before VSCF/VCI/VPT2. Default: 0. |
-| `MIXSCF` |    Real | Mix of VSCF coefficients. C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. Default: 0.5 |
+| `MIXSCF` |    Real | Mix of VSCF coefficients. C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. Default: 0.5. |
 
 ### Sum over States VPT2 (SoS VPT2)
 See: https://dx.doi.org/10.1021/acs.jpca.0c09526, J. Phys. Chem. A 2021, 125, 1301−1324'
