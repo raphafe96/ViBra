@@ -150,6 +150,8 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 *  **Selected VCI EN-PT2 memory optimization**: In `selected_vibrational_ci` (`vci.f90`), Step 5 (EN‑PT2 screening) now uses **streaming per‑thread top‑N selection** instead of allocating the full `pt2_contrib(n_ext, n_ref_states)` array. Each OpenMP thread maintains its own small top‑N buffer (`top_val_thread`, `top_idx_thread`) of size `N_sel_per_state × n_ref_states`, updated on the fly as external configurations are processed. After the parallel loop, the per‑thread buffers are merged into global `top_n_values` / `top_n_indices`. Works for both `list = 0` (auto mode) and `list = 1` (user‑provided list).
 
 *  **Memory impact**: The previous implementation stored the EN‑PT2 contribution of **every** external configuration to **every** CISD state in `pt2_contrib`, even though only the top `N_sel_per_state` per state are kept. For exemple, a list‑mode calculation with 5 quanta for filtering states of a 48‑mode molecule (`n_ext ≈ 2.5 M`, `n_ref ≈ 3500`), that array required ≈ `2.5M × 3500 × 8 bytes ≈ 70 GB`. The new streaming reduces this drastically (scales with `N_sel_per_state × n_ref_states × nthreads`), with identical final selected configurations and energies.
+  
+* Restarting the iterative diagonalizer is not currently working as intended. If the code reaches the buffer limit, it will stop for now. Increasing the buffer size, at the cost of additional memory usage, would bypass this limitation for now.
 
 * Changed 'vscf.out' output to always contain the harmonic frequencies, so that the GUI parses everything correctly regardless VCI@HO or VCI@VSCF.
 
