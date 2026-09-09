@@ -49,7 +49,7 @@ contains
         integer, intent(in) :: count
         integer :: i, numbering
         
-        write(101, '(A,I6,A)', advance='no') ' state ', count+numbering, ': ('
+        write(101, '(A,I12,A)', advance='no') ' state ', count+numbering, ': ('
         do i = 1, n
             if (i < n) then
                 write(101, '(I0,A)', advance='no') arr(i), ','

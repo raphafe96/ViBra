@@ -98,7 +98,7 @@ program main_vscf
   integer :: use_vci_at_vscf, write_vscf_ref_energy, n_cycles_scf
   real*8 :: mix_term_vscf
   real*8 :: ref_energy
-  integer :: max_scf_steps
+  integer :: max_scf_steps, calculate_fundamentals_vscf
   
   !===========================================================================
   ! Inverted index arrays
@@ -191,6 +191,7 @@ program main_vscf
   sci_mode = 'auto'
   use_vci_at_vscf = 1
   warning = 0
+  calculate_fundamentals_vscf = 1
 
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
@@ -203,10 +204,13 @@ program main_vscf
     stop
   end if
 
-  if (max_scf_steps .gt. 1000 .or. max_scf_steps .lt. 1) then
+  if (abs(max_scf_steps) .gt. 1000 .or. abs(max_scf_steps) .lt. 1) then
   write (*,*) ' ERROR: MAXSCF allowed is between 1 and 1000'
     stop
   end if
+
+   if (max_scf_steps .lt. 0)  calculate_fundamentals_vscf = 0
+   max_scf_steps = abs(max_scf_steps)
 
   excl3_alldiff_int = 0
   excl4_alldiff_int = 0
@@ -560,6 +564,14 @@ program main_vscf
     end do
   end do
 
+
+!!!!! VSCF.OUT NEEDS THIS!!!!
+write(101,*) 'Harmonic energies, all in cm-1' 
+do i =1, size(HO_freq)
+write(101,'(1A21,1I5,1A2,1F12.6)') 'HARMONIC ENERGY', i, ': ', HO_freq(i)/cm_to_hartree
+end do
+
+
 if(use_vci_at_vscf == 1) then
 
   write(*,'(A)') '========================================'
@@ -635,6 +647,7 @@ if(use_vci_at_vscf == 1) then
     end if
   end do
   
+  if (calculate_fundamentals_vscf == 1) then 
   write(*,'(A)') '>> Calculating VSCF fundamentals '
   !===========================================================================
   ! VSCF: single excitations
@@ -707,7 +720,7 @@ if(use_vci_at_vscf == 1) then
           write(101,'(1A28,1F12.6)') 'TRANSITION ENERGY (cm-1): ', &
                                       new_energy - energy_ground
           write(101,'(1A)') '---'
-          write(101,'(1A23,1I3,1A2,1F12.6)') 'HARMONIC ENERGY', i, ': ', &
+          write(101,'(1A21,1I5,1A2,1F12.6)') 'HARMONIC_ENERGY', i, ': ', &
               HO_freq(i)/cm_to_hartree
           exit
         end if
@@ -734,7 +747,7 @@ if(use_vci_at_vscf == 1) then
           100*intensities_vscf(i)/sqrt(sum(intensities_vscf(:)**2))
     end if
   end do
-
+end if !if that calculates the fundamentals
   write(*,'(A)') '========================================'
   write(*,'(A)') '              FINISHED VSCF             '
   write(*,'(A)') '========================================'
@@ -906,9 +919,9 @@ end if
       end do
 
       write(101,*)
-      write(101,'(A,I8)') ' States generated: ', total_combinations2
+      write(101,'(A,I12)') ' States generated: ', total_combinations2
       write(*,*)
-      write(*,'(A,I8)')   ' States generated: ', total_combinations2
+      write(*,'(A,I12)')   ' States generated: ', total_combinations2
 
       open(199, file = 'list_states.txt') 
 
@@ -916,13 +929,13 @@ end if
       total_combinations = max_states
       
       allocate(combination_vec(max_states, N_modes))
-      write(101,'(A,I8)') ' States read: ', max_states
-      write(*,'(A,I8)') ' States read: ', max_states
+      write(101,'(A,I12)') ' States read: ', max_states
+      write(*,'(A,I12)') ' States read: ', max_states
       
       do i = 1, max_states
         read(199,*) combination_vec(i, 1:N_modes)
-        write(*, '(100000I8)') i, combination_vec(i, 1:N_modes)
-        write(101, '(100000I8)') i, combination_vec(i, 1:N_modes)
+        write(*, '(1I12, 10000000I3)') i, combination_vec(i, 1:N_modes)
+        write(101, '(1I12, 10000000I3)') i, combination_vec(i, 1:N_modes)
       end do
 
       close(199)

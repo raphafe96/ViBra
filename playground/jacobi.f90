@@ -4,6 +4,9 @@ use read_input_file
   public dsyevd_A
   public dsyevr_A
 
+
+  !TO DO: fix the bug when restarting the iterative diagonalization. I disabled it for now.
+
 contains
 
   !===========================================================
@@ -507,6 +510,8 @@ subroutine jacobi_davidson_eigensolver(N_dim, Nfirst, &
     deallocate(res_norms)
    END BLOCK
 
+
+   
      !------------------------------------------------------------------
      ! Restart if subspace is full and not yet converged.
      ! Keep only the restart_size best Ritz vectors, then re‑orthonormalise.
@@ -530,6 +535,12 @@ subroutine jacobi_davidson_eigensolver(N_dim, Nfirst, &
      ! operation, not a cross-column rotation.
      !------------------------------------------------------------------
      if (k_current >= max_basis .and. .not. all(converged)) then
+
+         write(*,'(A)') ' Maximum subspace size reached before convergence, exiting loop.'
+         write(101,'(A)') ' Maximum subspace size reached before convergence, exiting loop.'
+         deallocate(H_sub, theta)   
+         exit
+
         block
           real*8, allocatable :: V_new(:,:), W_new(:,:)
           integer :: keep, col
@@ -578,7 +589,7 @@ subroutine jacobi_davidson_eigensolver(N_dim, Nfirst, &
   deallocate(H_diag, V, W, theta, H_sub, ind)
   deallocate(r, t, u, Ht, Hu, p, Ap, z)
   write(*,'(A)')    '----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'
-  write(*,'(A,I4,A)') ' Jacobi-Davidson (PCG) converged after ', iter, ' iterations.'
+  write(*,'(A,I4,A)') ' Jacobi-Davidson (PCG) finished after ', iter, ' iterations.'
   
 end subroutine jacobi_davidson_eigensolver
 

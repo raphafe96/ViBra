@@ -169,10 +169,10 @@ do k = 1, N_modes
     do i = 1, N_expansion
         do j = 1, N_expansion
             do p = 0, 4
-                u = sqrt((HO_freq(k)**real(p)))
+             !   u = sqrt((HO_freq(k)**real(p)))
                 Hamiltonian(k, i, j) = Hamiltonian(k, i, j) + X_one_mode(k, p)*store_integrals(k, i, j, p)
             end do
-            u = HO_freq(k)
+          !  u = HO_freq(k)
             Hamiltonian(k, i, j) = Hamiltonian(k, i, j) + store_integrals(k, i, j, 5)
         end do
     end do

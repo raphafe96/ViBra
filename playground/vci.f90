@@ -7,7 +7,15 @@ use read_input_file
 contains
 
 
+!TO DO: I was using the full spar_m and sparse_n even after filtering to calculate t5he dipole moments. Now they use their own spares pair list, so after filtering states for davidson it might be useful to deallocate(sparse_m, sparse_n, sparse_ndiff)
+        !This will keep the duplicated arrays only before the davidson, which consumes most memory usually. 
+        !for very large system, kind=4 may be not enough for these matrices... 
+    !ATTENTION: there is a deallocate there if number_to_print intensity is lower than 0. This must be removed from there if the deallocation is moved up in the code anyway.
 
+!TO DO: some sparse pair lists constructions are not running in parallel. Fine for smaller systems, but with 48 modes this can take some minutes...
+
+!TO DO: in ORCA, we can safely check n_diff .lt. or = to 3.. Therefore, for the compute H element, some kernels are the same (cubic and quartic can be grouped together in the same conditional checks)
+      !When compute_H element is called, n_diff is always bellow or equal to 3. So checking it again inside the compute_H_element is waste. Just check if n_diff = 0.
 
 !TO DO - remove sparse_diff_modes from everything- it is an old trash variable, that may increase memory but does nothing ;D I did it from the fullCI module, since it is the one with the largest hamiltonians.
     !Update: removed for selected vci as well
@@ -1076,9 +1084,14 @@ real*8, external    :: ddot
 !---------------------------------------------------------------------------
 ! EN-PT2 CONTRIBUTION ARRAYS FOR TOP-N SELECTION
 !---------------------------------------------------------------------------
-real*8, allocatable :: pt2_contrib(:,:)
+!real*8, allocatable :: pt2_contrib(:,:)
 integer, allocatable :: top_n_indices(:,:)
 real*8, allocatable :: top_n_values(:,:)
+integer :: nthreads, tid
+real*8,  allocatable :: top_val_thread(:,:,:)   
+integer, allocatable :: top_idx_thread(:,:,:)   
+real*8 :: pt2_val
+integer :: insert_pos
 
 !---------------------------------------------------------------------------
 ! COUPLING VECTOR FOR PT2 SCREENING
@@ -1576,7 +1589,7 @@ do i = 1, min(10, n_cisd_states)
 end do
 
 !==========================================================================
-! STEP 5: EN-PT2 screening — select top N_sel_per_state per CISD state
+! STEP 5: EN-PT2 screening — streaming top-N selection per CISD state
 !==========================================================================
 
 if (check_list == 0) then
@@ -1585,12 +1598,20 @@ if (check_list == 0) then
     write(101,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
         ' external configs across ', n_cisd_states, ' REF. states'
 
-    ! pt2_contrib(k, i_state) = |<alpha_k|H|Psi_I>|^2 / |E_I - H_aa|
-    ! for external config k and CISD state i_state
-    allocate(pt2_contrib(n_ext, n_cisd_states))
-    pt2_contrib = 0.d0
+    ! Number of OpenMP threads
+    nthreads = omp_get_max_threads()
 
-    allocate(coupling_vec(n_cisd_states))
+    ! Allocate per-thread top-N buffers
+    allocate(top_val_thread(N_sel_per_state, n_cisd_states, nthreads))
+    allocate(top_idx_thread(N_sel_per_state, n_cisd_states, nthreads))
+    top_val_thread = -huge(1.d0)
+    top_idx_thread = 0
+
+    ! Allocate global top-N arrays (will be filled by merge after loop)
+    allocate(top_n_values(N_sel_per_state, n_cisd_states))
+    allocate(top_n_indices(N_sel_per_state, n_cisd_states))
+    top_n_values  = -huge(1.d0)
+    top_n_indices = 0
 
     !$OMP PARALLEL DO DEFAULT(NONE) &
     !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations, to_sparse_cut, &
@@ -1603,11 +1624,13 @@ if (check_list == 0) then
     !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
     !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
     !$OMP&        eigenvalues, eigenvectors, n_cisd_states, &
-    !$OMP&        pt2_contrib) &
+    !$OMP&        N_sel_per_state, top_val_thread, top_idx_thread) &
     !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val, H_aa, &
-    !$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff) &
+    !$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff, tid, &
+    !$OMP&         pt2_val, insert_pos) &
     !$OMP& SCHEDULE(dynamic, 16)
     do k = 1, n_ext
+        tid = omp_get_thread_num() + 1
         m  = ext_list(k)
         vm(1:N_modes) = vec_combinations(m, 1:N_modes)
 
@@ -1651,45 +1674,112 @@ if (check_list == 0) then
         end do
 
         ! Compute coupling to each CISD eigenstate: <alpha|H|Psi_I> = sum_j c_jI * hrow(j)
-        coupling_vec(1:n_cisd_states) = 0.d0
+        allocate(coupling_vec(n_cisd_states))
+        coupling_vec = 0.d0
         do j = 1, n_sel
             if (abs(hrow(j)) < 1.d-30) cycle
             do i = 1, n_cisd_states
-                coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j) !h_row = Hmn = state inside the CISD and outisde, eigenvectoirs = Cn the CISD coefficient
+                coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j)
             end do
         end do
 
-        ! Compute EN-PT2 contribution for each CISD state
+        ! Compute EN-PT2 contribution for each CISD state and update top-N on the fly
         do i = 1, n_cisd_states
             denom = eigenvalues(i) - H_aa
-            if (abs(denom) < 1.d-12) then
-                pt2_contrib(k, i) = 0.d0
+            if (abs(denom) < 1.d-30) then
+                pt2_val = huge(1.d0)
             else
-                pt2_contrib(k, i) = abs(coupling_vec(i) * coupling_vec(i) / denom)
+                pt2_val = abs(coupling_vec(i) * coupling_vec(i) / denom)
+            end if
+
+            ! Insert into per-thread top-N list if larger than current minimum
+            if (pt2_val > top_val_thread(N_sel_per_state, i, tid)) then
+                ! Replace the smallest entry (which is at index N_sel_per_state)
+                top_val_thread(N_sel_per_state, i, tid) = pt2_val
+                top_idx_thread(N_sel_per_state, i, tid) = k
+
+                ! Bubble up to maintain descending order
+                do insert_pos = N_sel_per_state - 1, 1, -1
+                    if (top_val_thread(insert_pos+1, i, tid) > &
+                        top_val_thread(insert_pos,   i, tid)) then
+                        ! Swap values
+                        e_alpha = top_val_thread(insert_pos, i, tid)
+                        top_val_thread(insert_pos, i, tid) = &
+                            top_val_thread(insert_pos+1, i, tid)
+                        top_val_thread(insert_pos+1, i, tid) = e_alpha
+                        ! Swap indices
+                        j = top_idx_thread(insert_pos, i, tid)
+                        top_idx_thread(insert_pos, i, tid) = &
+                            top_idx_thread(insert_pos+1, i, tid)
+                        top_idx_thread(insert_pos+1, i, tid) = j
+                    else
+                        exit
+                    end if
+                end do
             end if
         end do
 
-        deallocate(hrow)
-
+        deallocate(hrow, coupling_vec)
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(coupling_vec)
+    ! Merge per-thread top-N lists into global top_n_values / top_n_indices
+    do i = 1, n_cisd_states
+        do tid = 1, nthreads
+            do j = 1, N_sel_per_state
+                if (top_idx_thread(j, i, tid) > 0) then
+                    pt2_val = top_val_thread(j, i, tid)
+                    if (pt2_val > top_n_values(N_sel_per_state, i)) then
+                        ! Replace smallest and bubble up (same as above)
+                        top_n_values(N_sel_per_state, i) = pt2_val
+                        top_n_indices(N_sel_per_state, i) = top_idx_thread(j, i, tid)
 
-end if
+                        do insert_pos = N_sel_per_state - 1, 1, -1
+                            if (top_n_values(insert_pos+1, i) > &
+                                top_n_values(insert_pos,   i)) then
+                                e_alpha = top_n_values(insert_pos, i)
+                                top_n_values(insert_pos, i) = &
+                                    top_n_values(insert_pos+1, i)
+                                top_n_values(insert_pos+1, i) = e_alpha
 
+                                k = top_n_indices(insert_pos, i)
+                                top_n_indices(insert_pos, i) = &
+                                    top_n_indices(insert_pos+1, i)
+                                top_n_indices(insert_pos+1, i) = k
+                            else
+                                exit
+                            end if
+                        end do
+                    end if
+                end if
+            end do
+        end do
+    end do
+
+    deallocate(top_val_thread, top_idx_thread)
+
+end if  ! check_list == 0
+
+! =====================================================================
+! Same for check_list == 1, using vec_combinations2
+! =====================================================================
 if (check_list == 1) then
     write(*,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
         ' external configs across ', n_cisd_states, ' LIST states'
     write(101,'(A,I8,A,I4,A)') ' Computing EN-PT2 contributions for ', n_ext, &
         ' external configs across ', n_cisd_states, ' LIST states'
 
-    ! pt2_contrib(k, i_state) = |<alpha_k|H|Psi_I>|^2 / |E_I - H_aa|
-    ! for external config k and CISD state i_state
-    allocate(pt2_contrib(n_ext, n_cisd_states))
-    pt2_contrib = 0.d0
+    nthreads = omp_get_max_threads()
 
-    allocate(coupling_vec(n_cisd_states))
+    allocate(top_val_thread(N_sel_per_state, n_cisd_states, nthreads))
+    allocate(top_idx_thread(N_sel_per_state, n_cisd_states, nthreads))
+    top_val_thread = -huge(1.d0)
+    top_idx_thread = 0
+
+    allocate(top_n_values(N_sel_per_state, n_cisd_states))
+    allocate(top_n_indices(N_sel_per_state, n_cisd_states))
+    top_n_values  = -huge(1.d0)
+    top_n_indices = 0
 
     !$OMP PARALLEL DO DEFAULT(NONE) &
     !$OMP& SHARED(n_ext, ext_list, n_sel, sel_list, vec_combinations2, to_sparse_cut, &
@@ -1702,11 +1792,13 @@ if (check_list == 1) then
     !$OMP&        cubic_for_mode, n_cubic_for_mode, n_cubic_max, &
     !$OMP&        quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
     !$OMP&        eigenvalues, eigenvectors, n_cisd_states, &
-    !$OMP&        pt2_contrib) &
+    !$OMP&        N_sel_per_state, top_val_thread, top_idx_thread) &
     !$OMP& PRIVATE(k, i, j, m, n, ii, vm, vn, H_val, H_aa, &
-    !$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff) &
+    !$OMP&         hrow, coupling_vec, e_alpha, denom, n_diff, tid, &
+    !$OMP&         pt2_val, insert_pos) &
     !$OMP& SCHEDULE(dynamic, 16)
     do k = 1, n_ext
+        tid = omp_get_thread_num() + 1
         m  = ext_list(k)
         vm(1:N_modes) = vec_combinations2(m, 1:N_modes)
 
@@ -1721,7 +1813,7 @@ if (check_list == 1) then
             quartic_for_mode, n_quartic_for_mode, n_quartic_max, &
             H_aa)
 
-        ! Compute coupling row: hrow(j) = <alpha|H|phi_j> for all CISD configs j
+        ! Compute coupling row: hrow(j) = <alpha|H|phi_j> for all LIST configs j
         allocate(hrow(n_sel))
         hrow = 0.d0
         do j = 1, n_sel
@@ -1749,96 +1841,91 @@ if (check_list == 1) then
             hrow(j) = H_val
         end do
 
-        ! Compute coupling to each CISD eigenstate: <alpha|H|Psi_I> = sum_j c_jI * hrow(j)
-        coupling_vec(1:n_cisd_states) = 0.d0
+        ! Compute coupling to each LIST eigenstate
+        allocate(coupling_vec(n_cisd_states))
+        coupling_vec = 0.d0
         do j = 1, n_sel
             if (abs(hrow(j)) < 1.d-30) cycle
             do i = 1, n_cisd_states
-                coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j) !h_row = Hmn = state inside the CISD and outisde, eigenvectoirs = Cn the CISD coefficient
+                coupling_vec(i) = coupling_vec(i) + eigenvectors(j,i) * hrow(j)
             end do
         end do
 
-        ! Compute EN-PT2 contribution for each CISD state
+        ! Compute EN-PT2 contribution and update top-N on the fly
         do i = 1, n_cisd_states
             denom = eigenvalues(i) - H_aa
-            if (abs(denom) < 1.d-12) then
-                pt2_contrib(k, i) = 0.d0
+            if (abs(denom) < 1.d-30) then
+                pt2_val = huge(1.d0)
             else
-                pt2_contrib(k, i) = abs(coupling_vec(i) * coupling_vec(i) / denom)
+                pt2_val = abs(coupling_vec(i) * coupling_vec(i) / denom)
+            end if
+
+            if (pt2_val > top_val_thread(N_sel_per_state, i, tid)) then
+                top_val_thread(N_sel_per_state, i, tid) = pt2_val
+                top_idx_thread(N_sel_per_state, i, tid) = k
+
+                do insert_pos = N_sel_per_state - 1, 1, -1
+                    if (top_val_thread(insert_pos+1, i, tid) > &
+                        top_val_thread(insert_pos,   i, tid)) then
+                        e_alpha = top_val_thread(insert_pos, i, tid)
+                        top_val_thread(insert_pos, i, tid) = &
+                            top_val_thread(insert_pos+1, i, tid)
+                        top_val_thread(insert_pos+1, i, tid) = e_alpha
+
+                        j = top_idx_thread(insert_pos, i, tid)
+                        top_idx_thread(insert_pos, i, tid) = &
+                            top_idx_thread(insert_pos+1, i, tid)
+                        top_idx_thread(insert_pos+1, i, tid) = j
+                    else
+                        exit
+                    end if
+                end do
             end if
         end do
 
-        deallocate(hrow)
-
+        deallocate(hrow, coupling_vec)
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(coupling_vec)
+    ! Merge per-thread top-N lists into global
+    do i = 1, n_cisd_states
+        do tid = 1, nthreads
+            do j = 1, N_sel_per_state
+                if (top_idx_thread(j, i, tid) > 0) then
+                    pt2_val = top_val_thread(j, i, tid)
+                    if (pt2_val > top_n_values(N_sel_per_state, i)) then
+                        top_n_values(N_sel_per_state, i) = pt2_val
+                        top_n_indices(N_sel_per_state, i) = top_idx_thread(j, i, tid)
 
-end if
+                        do insert_pos = N_sel_per_state - 1, 1, -1
+                            if (top_n_values(insert_pos+1, i) > &
+                                top_n_values(insert_pos,   i)) then
+                                e_alpha = top_n_values(insert_pos, i)
+                                top_n_values(insert_pos, i) = &
+                                    top_n_values(insert_pos+1, i)
+                                top_n_values(insert_pos+1, i) = e_alpha
 
-
-!----------------------------------------------------------------------
-! 5b: For each CISD state, find the top N_sel_per_state external configs
-!     and mark them as selected (union across all states)
-!----------------------------------------------------------------------
-! top_n_indices(rank, state) = index into ext_list of the rank-th most important config
-! top_n_values(rank, state)  = corresponding pt2 contribution value
-
-
-allocate(top_n_indices(N_sel_per_state, n_cisd_states))
-allocate(top_n_values(N_sel_per_state, n_cisd_states))
-top_n_indices = 0
-top_n_values  = 0.d0
-
-! For each CISD state, find the N_sel_per_state largest pt2_contrib entries
-do i_state = 1, n_cisd_states
-    ! Initialize with first N_sel_per_state entries (or fewer if n_ext is small)
-    do k = 1, min(N_sel_per_state, n_ext)
-        top_n_values(k, i_state)  = pt2_contrib(k, i_state)
-        top_n_indices(k, i_state) = k
-    end do
-
-    ! Simple insertion sort to maintain top-N: sort initial entries descending
-    do i = 1, min(N_sel_per_state, n_ext)
-        do j = i + 1, min(N_sel_per_state, n_ext)
-            if (top_n_values(j, i_state) > top_n_values(i, i_state)) then
-                e_alpha = top_n_values(i, i_state)
-                top_n_values(i, i_state) = top_n_values(j, i_state)
-                top_n_values(j, i_state) = e_alpha
-                idx = top_n_indices(i, i_state)
-                top_n_indices(i, i_state) = top_n_indices(j, i_state)
-                top_n_indices(j, i_state) = idx
-            end if
+                                k = top_n_indices(insert_pos, i)
+                                top_n_indices(insert_pos, i) = &
+                                    top_n_indices(insert_pos+1, i)
+                                top_n_indices(insert_pos+1, i) = k
+                            else
+                                exit
+                            end if
+                        end do
+                    end if
+                end if
+            end do
         end do
     end do
 
-    ! Scan remaining external configs and insert if larger than current minimum
-    do k = N_sel_per_state + 1, n_ext
-        ! The minimum of the top-N is at position N_sel_per_state (sorted descending)
-        if (pt2_contrib(k, i_state) > top_n_values(N_sel_per_state, i_state)) then
-            ! Replace the smallest entry
-            top_n_values(N_sel_per_state, i_state)  = pt2_contrib(k, i_state)
-            top_n_indices(N_sel_per_state, i_state) = k
+    deallocate(top_val_thread, top_idx_thread)
 
-            ! Bubble up to maintain descending order
-            do i = N_sel_per_state - 1, 1, -1
-                if (top_n_values(i+1, i_state) > top_n_values(i, i_state)) then
-                    e_alpha = top_n_values(i, i_state)
-                    top_n_values(i, i_state) = top_n_values(i+1, i_state)
-                    top_n_values(i+1, i_state) = e_alpha
-                    idx = top_n_indices(i, i_state)
-                    top_n_indices(i, i_state) = top_n_indices(i+1, i_state)
-                    top_n_indices(i+1, i_state) = idx
-                else
-                    exit
-                end if
-            end do
-        end if
-    end do
-end do
+end if  ! check_list == 1
 
+!----------------------------------------------------------------------
 ! Mark the union of all top-N configurations as selected
+!----------------------------------------------------------------------
 n_new = 0
 do i_state = 1, n_cisd_states
     do k = 1, min(N_sel_per_state, n_ext)
@@ -1852,7 +1939,7 @@ do i_state = 1, n_cisd_states
     end do
 end do
 
-deallocate(pt2_contrib, top_n_indices, top_n_values)
+deallocate(top_n_indices, top_n_values)
 
 write(*,'(A,I8,A,I4,A)') '  --> ', n_new, &
     ' new configurations selected (union across ', n_cisd_states, ' states)'
@@ -2323,7 +2410,7 @@ if(check_list == 0) then
     write(101,*)
     write(101,*) '>> Final List' 
     do i = 1, n_sel
-        write(101,'(99999I5)') sel_list(i), vec_combinations(sel_list(i),:)
+        write(101,'(1I12, 99999I5)') sel_list(i), vec_combinations(sel_list(i),:)
     end do
     write(101,*)
     if (to_write_output <= N_states) then
