@@ -145,6 +145,14 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 
 ## Changelog
 
+**09/09/2026**
+
+*  **Selected VCI EN-PT2 memory optimization**: In `selected_vibrational_ci` (`vci.f90`), Step 5 (EN‑PT2 screening) now uses **streaming per‑thread top‑N selection** instead of allocating the full `pt2_contrib(n_ext, n_ref_states)` array. Each OpenMP thread maintains its own small top‑N buffer (`top_val_thread`, `top_idx_thread`) of size `N_sel_per_state × n_cisd_states`, updated on the fly as external configurations are processed. After the parallel loop, the per‑thread buffers are merged into global `top_n_values` / `top_n_indices`. Works for both `list = 0` (auto mode) and `list = 1` (user‑provided list).
+
+*  **Memory impact**: The previous implementation stored the EN‑PT2 contribution of **every** external configuration to **every** CISD state in `pt2_contrib`, even though only the top `N_sel_per_state` per state are kept. For exemple, a list‑mode calculation with 5 quanta for filtering states of a 48‑mode molecule (`n_ext ≈ 2.5 M`, `n_ref ≈ 3500`), that array required ≈ `2.5M × 3500 × 8 bytes ≈ 70 GB`. The new streaming reduces this drastically (scales with `N_sel_per_state × n_ref_states × nthreads`), with identical final selected configurations and energies.
+
+* Changed 'vscf.out' output to always contain the harmonic frequencies, so that the GUI parses everything correctly regardless VCI@HO or VCI@VSCF.
+
 **07/09/2026**
 
 * Added the `MIXSCF` keyword to `extra_input.txt` (real, default 0.5) to control the mixing of VSCF modal coefficients between successive SCF iterations. The new coefficients are combined with the previous ones as `(1 - MIXSCF) * old + MIXSCF * new`, improving convergence stability for difficult cases.
