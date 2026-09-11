@@ -53,17 +53,16 @@ contains
   !==========================================================================
   ! PUBLIC: init_symmetry
   !==========================================================================
-  subroutine init_symmetry(N_modes_vci, irrep_of_mode, proj_cutoff_in, warning)
+  subroutine init_symmetry(N_modes_vci, irrep_of_mode, proj_cutoff_in, warning, number_excluded)
     integer, intent(in)  :: N_modes_vci
     integer, intent(out) :: irrep_of_mode(N_modes_vci)
     real*8,  intent(in)  :: proj_cutoff_in
-    integer :: i, n_vib, warning
+    integer :: i, n_vib, warning, number_excluded
     integer, parameter :: n_skip = 6
     character(len=10)  :: pg_input
 
     proj_cutoff_sym = proj_cutoff_in
-
-    call read_normal_modes()
+    call read_normal_modes(number_excluded)
     call read_point_group_from_user(pg_input)
     call setup_group_from_name(pg_input)
 
@@ -408,10 +407,10 @@ contains
   !==========================================================================
   ! Read normal_mode.txt
   !==========================================================================
-  subroutine read_normal_modes()
+  subroutine read_normal_modes(exclud_number)
     integer           :: ios, imode, iat, i
     character(len=10) :: word1
-    integer           :: dummy_int
+    integer           :: dummy_int, exclud_number
 
     open(unit=55, file='normal_mode.txt', status='old', iostat=ios)
     if (ios /= 0) then
@@ -419,7 +418,7 @@ contains
     end if
 
     read(55,*) n_atoms
-    n_modes_file = 3 * n_atoms
+    n_modes_file = 3 * n_atoms - exclud_number
 
     if (allocated(atom_label)) deallocate(atom_label)
     if (allocated(atom_xyz))   deallocate(atom_xyz)
@@ -434,16 +433,15 @@ contains
       atom_mass(iat) = element_mass(atom_label(iat))
       atom_Z(iat)    = element_Z(atom_label(iat))
     end do
-
     if (allocated(mode_freq)) deallocate(mode_freq)
     if (allocated(mode_disp)) deallocate(mode_disp)
-    allocate(mode_freq(n_modes_file), mode_disp(n_modes_file, n_modes_file))
+    allocate(mode_freq(n_modes_file), mode_disp(3 * n_atoms, 3 * n_atoms))
     mode_freq = 0.d0; mode_disp = 0.d0
 
     do imode = 1, n_modes_file
       read(55,*) word1, dummy_int
       read(55,*) mode_freq(imode)
-      do i = 1, n_modes_file
+      do i = 1, 3 * n_atoms
         read(55,*) mode_disp(i, imode)
       end do
     end do

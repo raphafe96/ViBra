@@ -5,7 +5,7 @@ use jacobi_diagonalization
 
 contains
 
-subroutine read_orca(file, linear, vibrations, cubic, quartic, N_modes, save_dip, save_second_dipole)
+subroutine read_orca(file, linear, vibrations, cubic, quartic, N_modes, save_dip, save_second_dipole, exclude, number_excl)
   
   implicit none
   
@@ -22,6 +22,7 @@ subroutine read_orca(file, linear, vibrations, cubic, quartic, N_modes, save_dip
   real*8, allocatable :: quartic(:,:,:,:)
   real*8, allocatable :: eigenvectors_mass(:,:)
   real*8, allocatable :: intensities(:)
+  integer :: exclude(:), number_excl, counter_exclud, check_exclud
 
   
   integer :: elements_quadratic, elements_cubic, i, j, k, l, io, idx, linear
@@ -300,12 +301,36 @@ cte = 1.d0
   end do
 
 
+  
+  counter_exclud = 0
   do i = 1, n_atoms*3
+  if(i .lt. 7) then
     write(1010,*) 'Mode ', i
       write(1010,'(F12.6)') frequencies(i)
       do j = 1, n_atoms*3
         write(1010,'(F14.8)') eigenvectors(j,i)
       end do
+    else 
+  end if
+
+  if(i .gt. 6) then
+    check_exclud = 0
+    do j = 1, number_excl
+      if (i-6 == exclude(j)) then 
+        check_exclud = 1
+      end if
+    end do
+    if (check_exclud == 0) then
+      counter_exclud = counter_exclud + 1
+      write(1010,*) 'Mode ', counter_exclud + 6
+      write(1010,'(F12.6)') frequencies(i)
+      do j = 1, n_atoms*3
+        write(1010,'(F14.8)') eigenvectors(j,i)
+      end do
+    end if 
+
+  end if
+
   end do
 
   close(1010)

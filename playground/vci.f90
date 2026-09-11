@@ -12,6 +12,10 @@ contains
         !for very large system, kind=4 may be not enough for these matrices... 
     !ATTENTION: there is a deallocate there if number_to_print intensity is lower than 0. This must be removed from there if the deallocation is moved up in the code anyway.
 
+    !allocating sparse vectors IF dense diagonalization is only necessary for the dipole (in the current code, previously, it also used the dense matrix result). I could merge the compute_H elements loop with the check for n_diff modes (ie building the sparse pair list) in the dense diagonalization kernel. However, using dense diagonalization is limited to very few cases.
+    !In the real world, user would use the iterative solver, so let's keep it and compute all the sparse lists and store them. It consumes memory as the system grows (but nothing compared to the dense diagonalization)
+    !It is also more straightforward to parallelize the code with a loop the goes up to the sparse pairs, paying the price - for dense diagonalization - of storing something that could be avoided. For iterative solver, this initial build-up of sparse lists is crucial and necessary.
+
 !TO DO: some sparse pair lists constructions are not running in parallel. Fine for smaller systems, but with 48 modes this can take some minutes...
 
 !TO DO: in ORCA, we can safely check n_diff .lt. or = to 3.. Therefore, for the compute H element, some kernels are the same (cubic and quartic can be grouped together in the same conditional checks)

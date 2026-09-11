@@ -60,7 +60,7 @@ program main_vscf
   !===========================================================================
   ! Scalar integers
   !===========================================================================
-  integer :: N_expansion, N_modes, i, j, k, l, mu, nu, working_mode, p
+  integer :: N_expansion, N_modes, i, j, k, l, mu, nu, working_mode, p, n_check_list
   integer :: total_combinations, N_quanta, N_states, m, n, contar, test, total_combinations2
   integer :: state_number
   integer :: conv_scf, N_threads, calculate_sci, max_iter_sci        
@@ -133,7 +133,7 @@ program main_vscf
   ! list of states
   !===========================================================================
   integer :: max_states
-
+  character(len=1000000), allocatable :: line
   !===========================================================================
   ! DAV
   !===========================================================================
@@ -151,6 +151,8 @@ program main_vscf
   real*8, allocatable :: HO_freq_to_exclude(:)
   logical :: exclude_mode
   real*8 :: energy_excluded
+  real*8 :: q_cross
+  character(len=40) :: flag
 
   !===========================================================================
   ! Term exclusion by mode-distinctness
@@ -162,7 +164,7 @@ program main_vscf
   !
   integer :: run_vpt2
 
-
+  allocate(line)
   !===========================================================================
   ! Timing
   !===========================================================================
@@ -192,6 +194,7 @@ program main_vscf
   use_vci_at_vscf = 1
   warning = 0
   calculate_fundamentals_vscf = 1
+  N_states = -1 !If less roots is needed, the code must run with davidson.
 
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
@@ -221,10 +224,6 @@ program main_vscf
     call read_intg('R4DIFF', excl4_alldiff_int,   0)
     call read_intg('R4TRIP', excl4_threediff_int, 0)
   end if
-
-  if (run_vpt2 == 1) use_vci_at_vscf = 0 !we make the vpt2 theory based on harmonic oscilator...
-
-  N_states = -1 !If less roots is needed, the code must run with davidson.
 
  ! if (test == 1) use_vci_at_vscf = 1
  
@@ -291,23 +290,6 @@ program main_vscf
   !===========================================================================
   ! Read force constants
   !===========================================================================
-  if (test == 0) then
-    call read_orca(constants_file, 0, HO_freq, Potential_3, Potential_4, &
-                   N_modes, dipole_derivatives, second_dipole_derivatives)
-
-    write(*,*) 'DIPOLES (not transition)'
-    write(*,*) '------------------------'
-    do i = 1, N_modes
-      write(*,'(3F12.6)') dipole_derivatives(i, 1:3)
-    end do
-    write(*,*) '------------------------'
-
-  !!!!!!!!!!!!!!!!!!!
-  ! EXCLUDING MODES !
-  !!!!!!!!!!!!!!!!!!!
-
-  
-
   allocate(modes_to_exclude(N_modes))
 
   exclude_mode = .false.
@@ -318,6 +300,81 @@ program main_vscf
     call read_exclude(N_modes, HO_freq, exclude_mode, modes_to_exclude, number_to_exclude)
   end if
 
+  if (run_vpt2 == 1) use_vci_at_vscf = 0 !we make the vpt2 theory based on harmonic oscilator...
+
+  if (test == 0) then
+    call read_orca(constants_file, 0, HO_freq, Potential_3, Potential_4, &
+                   N_modes, dipole_derivatives, second_dipole_derivatives, modes_to_exclude, number_to_exclude)
+
+    write(*,*) 'DIPOLES (not transition)'
+    write(*,*) '------------------------'
+    do i = 1, N_modes
+      write(*,'(3F12.6)') dipole_derivatives(i, 1:3)
+    end do
+    write(*,*) '------------------------'
+
+
+    ! ------------------------------------------------------------------
+    ! q_cross diagnostic: amplitude (in dimensionless normal coordinate
+    ! units) at which the diagonal quartic term of the QFF equals the
+    ! diagonal harmonic term, i.e. where the truncated 4th-order Taylor
+    ! expansion stops being "harmonic + small correction" and becomes
+    ! quartic-dominated:
+    !
+    !     (HO_freq/2) * q^2  =  (Phi_iiii/24) * q^4
+    !     =>  q_cross = sqrt(12 * HO_freq / Phi_iiii)
+    !
+    ! This is compared against the classical turning points of the HO
+    ! eigenstates, q_v = sqrt(2v+1) (v=0 -> 1.00, v=1 -> 1.73, v=2 -> 2.24),
+    ! which mark the vibrational amplitude actually sampled by each
+    ! quantum state. If q_cross falls below a turning point q_v, the
+    ! quartic term already dominates the potential before the molecule
+    ! reaches that state's amplitude, meaning the QFF is not a trustworthy
+    ! local model out to v quanta in that mode. a model-free (no VPT2,
+    ! no symmetry assumption) screen for LAM / QFF-breakdown candidates.
+    ! Reference thresholds used below: sqrt(1)=1.00 (v=0), sqrt(3)=1.73
+    ! (v=1), sqrt(5)=2.24 (v=2).
+    ! ------------------------------------------------------------------
+
+    write(*,*) '----------------------------------------------------------'
+    write(*,*) 'Checking possible LAM: q_cross = sqrt(12*HO_freq/Phi_iiii)'
+    write(*,*) '----------------------------------------------------------'
+    write(*,'(1A4, 3A12)') ' ','freq', 'Ph_iiii', 'q_cross'
+    do i = 1, N_modes
+
+      ! Guard against zero/near-zero diagonal quartic terms (division by
+      ! zero) -- can happen for symmetry-forced-small or genuinely tiny
+      ! Phi_iiii. Sentinel q_cross = -1.d0 marks "undefined".
+      if (abs(Potential_4(i,i,i,i)) .gt. 1.d-10) then
+        q_cross = sqrt(12.d0*HO_freq(i)/Potential_4(i,i,i,i))
+      else
+        q_cross = -1.d0
+      end if
+
+      ! Tiered flag: report *which* vibrational shell the QFF fails by,
+      ! rather than a single pass/fail cutoff.
+      flag = ''
+      if (q_cross .gt. 0.d0) then
+        if (q_cross .lt. 1.d0) then
+          flag = '  LAM: fails even at ZPE (v=0)'
+        else if (q_cross .lt. dsqrt(3.d0)) then
+          flag = '  LAM risk: fails by v=1'
+        else if (q_cross .lt. dsqrt(5.d0)) then
+          flag = '  LAM risk: fails by v=2'
+        end if
+      end if
+
+      if (len_trim(flag) .gt. 0) then
+        write(*,'(1I4, 3F12.2, 1A34)') i, HO_freq(i), Potential_4(i,i,i,i), q_cross, trim(flag)
+      else
+        write(*,'(1I4, 3F12.2)') i, HO_freq(i), Potential_4(i,i,i,i), q_cross
+      end if
+    end do
+    write(*,*) '----------------------------------------------------'
+
+  !!!!!!!!!!!!!!!!!!!
+  ! EXCLUDING MODES !
+  !!!!!!!!!!!!!!!!!!!
 
   open(101, file='vscf.out')
   write(101,'(A)') '========================================'
@@ -789,7 +846,7 @@ end if !end checking if runs HO or VSCF
       write(101,'(A)') '========================================'
       warning = 0
       open(102, file='debug_sym.txt')
-      call init_symmetry(N_modes, mode_irrep_arr, proj_cutoff, warning)         
+      call init_symmetry(N_modes, mode_irrep_arr, proj_cutoff, warning, number_to_exclude)         
       close(102)
       use_symmetry = 1
     else
@@ -933,7 +990,21 @@ end if
       write(*,'(A,I12)') ' States read: ', max_states
       
       do i = 1, max_states
-        read(199,*) combination_vec(i, 1:N_modes)
+        n_check_list = 0
+        read(199, '(A)') line
+        do j = 1, len_trim(line)
+            if (line(j:j) /= ' ' .and. (j == 1 .or. line(j-1:j-1) == ' ')) &
+                n_check_list = n_check_list + 1
+        end do
+
+        if (n_check_list /= N_modes) then
+          write(*,'(1A)') ' ERROR: list has different number of modes'
+          write(*,'(1A, 1I5, 1A, 1I5)') ' Found: ', n_check_list, ' Expected: ', N_modes
+          stop
+        end if
+
+
+        read(line,*) combination_vec(i, 1:N_modes)
         write(*, '(1I12, 10000000I3)') i, combination_vec(i, 1:N_modes)
         write(101, '(1I12, 10000000I3)') i, combination_vec(i, 1:N_modes)
       end do
@@ -965,17 +1036,6 @@ end if
     if (max_iter_sci > 0 .and. point_group_name == 'C1') calculate_sci = 1
     if (max_iter_sci == 0 .and. sci_mode == 'list') calculate_sci = 1
 
-    if (exclude_mode == .true. .and. point_group_input /= 'C1') then
-      write(*,*)
-      write(*,'(A)') 'ERROR: NOT YET IMPLEMENTED TO USE SA-VCI and EXCLUD, change to normal VCI or Selected VCI'
-      stop
-    end if
-
-    if (exclude_mode == .true. .and. sci_mode == 'list') then
-      write(*,*)
-      write(*,'(A)') 'ERROR: NOT YET IMPLEMENTED TO USE list and EXCLUD, change to auto'
-      stop
-    end if
     !=========================================================================
     ! Dispatch
     !=========================================================================
