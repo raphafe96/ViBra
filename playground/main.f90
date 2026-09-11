@@ -330,15 +330,14 @@ program main_vscf
     ! quantum state. If q_cross falls below a turning point q_v, the
     ! quartic term already dominates the potential before the molecule
     ! reaches that state's amplitude, meaning the QFF is not a trustworthy
-    ! local model out to v quanta in that mode. a model-free (no VPT2,
-    ! no symmetry assumption) screen for LAM / QFF-breakdown candidates.
+    ! local model out to v quanta in that mode. screen for LAM / QFF-breakdown candidates.
     ! Reference thresholds used below: sqrt(1)=1.00 (v=0), sqrt(3)=1.73
     ! (v=1), sqrt(5)=2.24 (v=2).
     ! ------------------------------------------------------------------
 
-    write(*,*) '----------------------------------------------------------'
-    write(*,*) 'Checking possible LAM: q_cross = sqrt(12*HO_freq/Phi_iiii)'
-    write(*,*) '----------------------------------------------------------'
+    write(*,*) '------------------------------------------------------------------------'
+    write(*,*) 'Checking possible problematic modes: q_cross = sqrt(12*HO_freq/Phi_iiii)'
+    write(*,*) '------------------------------------------------------------------------'
     write(*,'(1A4, 3A12)') ' ','freq', 'Ph_iiii', 'q_cross'
     do i = 1, N_modes
 
@@ -346,7 +345,7 @@ program main_vscf
       ! zero) -- can happen for symmetry-forced-small or genuinely tiny
       ! Phi_iiii. Sentinel q_cross = -1.d0 marks "undefined".
       if (abs(Potential_4(i,i,i,i)) .gt. 1.d-10) then
-        q_cross = sqrt(12.d0*HO_freq(i)/Potential_4(i,i,i,i))
+        q_cross = sqrt(12.d0*HO_freq(i)/abs(Potential_4(i,i,i,i)))
       else
         q_cross = -1.d0
       end if
@@ -356,11 +355,11 @@ program main_vscf
       flag = ''
       if (q_cross .gt. 0.d0) then
         if (q_cross .lt. 1.d0) then
-          flag = '  LAM: fails even at ZPE (v=0)'
+          flag = '  risk: fails by v=0'
         else if (q_cross .lt. dsqrt(3.d0)) then
-          flag = '  LAM risk: fails by v=1'
+          flag = '  risk: fails by v=1'
         else if (q_cross .lt. dsqrt(5.d0)) then
-          flag = '  LAM risk: fails by v=2'
+          flag = '  risk: fails by v=2'
         end if
       end if
 
