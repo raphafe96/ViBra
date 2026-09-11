@@ -147,7 +147,7 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 
 * `EXCLUD` now works with symmetry-adapted VCI.
 * Added a check to `MAXSCI list` to ensure the number of vibrational modes matches the number of elements per line. This is especially relevant when modes are excluded and serves as a safeguard.
-* Added a diagnostic for  Large-Amplitude Motion (LAM) that computes q_cross = sqrt(12 * HO_freq / Phi_iiii), and compares it against the harmonic-oscillator turning points q_v = sqrt(2v+1) (v = 0, 1, 2) to flag modes where the quartic term dominates before the state’s vibrational amplitude is reached, serving as a simple screen for LAM/QFF-breakdown candidates.
+* Added a diagnostic for problematic modes that computes q_cross = sqrt(12 * HO_freq / Phi_iiii), and compares it against the harmonic-oscillator turning points q_v = sqrt(2v+1) (v = 0, 1, 2) to flag modes where the quartic term dominates before the state’s vibrational amplitude is reached, serving as a simple screen for QFF-breakdown candidates.
 
 **09/09/2026**
 
