@@ -20,7 +20,7 @@ The playground currently introduces the following new and experimental features:
 - **Iterative diagonalization**: Option to run an iterative Davidson diagonalizer when a full VCI or selected VCI calculation is requested, avoiding the memory bottleneck of storing the full dense Hamiltonian matrix. Not yet implemented for the symmetry adapted part.
 - **Built-in water molecule test**: An option to automatically run a water molecule test case using VCI@VSCF. This allows you to compare results with Crystal23 output and verify that everything is running correctly (you must explicitly set the RUNSCF to 1).
 - **Extended intensity output**: For full and selected VCI calculations, frequencies are now also saved in km/mol alongside the transition dipoles in a new file called `dipoles_intensity_vci.txt`, providing richer data for spectral analysis.
-- **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI/VPT calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. **This currently does not work for Symmetry-Adapted VCI (SA-VCI)** — see the keyword description and warning below.
+- **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI/VPT calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. 
 - **Sum over States VPT2 (SoS VPT2)**: A way to obtain anharmonic energies without a full VCI diagonalization, using the existing VCI Hamiltonian kernel. Described in detail below.
 - **Force-field term exclusion by index-distinctness**: Possibility to zero out specific cubic/quartic force constants before VSCF/VCI/VPT2, based on how many distinct mode indices they involve. Described in detail below.
 - **Improved VSCF convergence**: Controls the mixing of VSCF modal coefficients between successive SCF iterations.  In each cycle, the new coefficients `C_new` (obtained from diagonalising the effective one-mode Hamiltonian) are combined with the previous coefficients `C_old` as: C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. 
@@ -45,7 +45,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `RUNENR` | Integer | Set to 1 to estimate the number of states needed for a given frequency threshold (based on HO energies), 2 to also print the state energies (HO), or 0 to do nothing. Default: 0. |
 | `MAXFRQ` |    Real | Maximum frequency in cm⁻¹ for which intensities will be calculated. Default: 4500.0.                                |
 | `DAVBUF` | Integer | Buffer size for the subspace dimension in the Davidson diagonalizer. There is a minimum limit internally set to DAVSTA times 20. Default: 4000. |
-| `EXCLUD` |  Mixed  | Excludes vibrational modes from the calculation before VSCF/VCI. Two sub-keyword forms: `EXCLUD auto <freq_cutoff>` removes every mode with a harmonic frequency (cm⁻¹) below `<freq_cutoff>` (real); `EXCLUD spec <mode1> <mode2> ...` (integers) removes exactly the listed mode indices. For `spec`, indices refer to **vibrational** modes only: a non-linear molecule with N atoms has 3N total modes, of which 3N−6 are vibrational after removing the 3 translations and 3 rotations, and the first vibrational mode is index 1 (not the first of the 3N raw modes). Default: not set (no exclusion). **⚠️ Does not currently work with Symmetry-Adapted VCI (SA-VCI, i.e. a point group other than C1).** |
+| `EXCLUD` |  Mixed  | Excludes vibrational modes from the calculation before VSCF/VCI. Two sub-keyword forms: `EXCLUD auto <freq_cutoff>` removes every mode with a harmonic frequency (cm⁻¹) below `<freq_cutoff>` (real); `EXCLUD spec <mode1> <mode2> ...` (integers) removes exactly the listed mode indices. For `spec`, indices refer to **vibrational** modes only: a non-linear molecule with N atoms has 3N total modes, of which 3N−6 are vibrational after removing the 3 translations and 3 rotations, and the first vibrational mode is index 1 (not the first of the 3N raw modes). Default: not set (no exclusion). |
 | `R3DIFF` | Integer | Set to 1 to zero every cubic force constant Φ_ijk with 3 distinct mode indices (i≠j≠k≠i), before VSCF/VCI/VPT2. Default: 0. |
 | `R4DIFF` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with 4 distinct mode indices, before VSCF/VCI/VPT2. Default: 0. |
 | `R4TRIP` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with exactly 3 distinct mode indices (the Φ_iijk-type patterns), before VSCF/VCI/VPT2. Default: 0. |
@@ -127,8 +127,6 @@ To exclude specific modes (e.g. modes 1, 6, and 38):
 
     EXCLUD spec 1 6 38
 
-⚠️ Only use `EXCLUD` with point group `C1` for now. Combining it with SA-VCI (any other point group) will give incorrect irrep assignments and, consequently, incorrect symmetry-restricted VCI results.
-
 ### Example: 0 Force-Field Terms by Index-Distinctness
 
 To zero only the fully off-diagonal cubic terms (Φ_ijk, 3 distinct indices):
@@ -144,6 +142,11 @@ To drop all cubic and quartic terms with 3 or more distinct mode indices, keepin
 This is primarily useful as a diagnostic: comparing full-force-field results against a reduced-term run isolates how much of a given spectral feature comes from genuine higher-mode coupling versus the lower-order terms. It is not a substitute for a converged calculation with the full force field.
 
 ## Changelog
+
+**11/09/2026**
+
+* `EXCLUD` now works with symmetry-adapted VCI.
+* Added a check to `MAXSCI list` to ensure the number of vibrational modes matches the number of elements per line. This is especially relevant when modes are excluded and serves as a safeguard.
 
 **09/09/2026**
 
