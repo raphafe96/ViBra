@@ -2,16 +2,6 @@
 
 This is the ViBra playground, a sandbox for new, experimental, and evolving features that push the boundaries of vibrational configuration interaction. Explore, experiment, and help shape our software. Just remember: things here may change, break, or evolve, that is the nature of a playground!
 
-## ⚠️ Important Warning: Selected VCI with List Mode (State List Parsing Bug)
-
-A severe bug was found when the Selected VCI is used with **list mode** (`MAXSCI N list`). The issue arises in the construction of the CI reference state: ViBra builds the list of total configurations based on total quanta, then reads the user‑provided state list and compares it with all states to define what is reference and what is external (for further EN-PT enlargement, if requested). The bug was in the ordering/labeling of the states: the program was using the order of the full configuration list rather than the order of the provided list. As a result, the reference space contained **the exact same number** of states as in the list file, but because the ordering was not properly parsed, the final reference contained **mismatched states** from the actual list provided.
-
-This does not affect the overall trend of the results presented in the arXiv paper and Zenodo repository, but it does affect the exact numerical values. We are waiting for further validation before updating the arXiv paper and Zenodo repository. A working (but still being tested) version is available here.
-
-✅ **Note:** The **auto mode** for Selected VCI (`MAXSCI N auto s/d/t/q`) is **working as intended** and is **not affected** by the list‑mode parsing bug.
-
-Update: the Zenodo repository and the source code have been replaced with a working version/correct results.
-
 ## ✨ What's New in This Version
 
 The playground currently introduces the following new and experimental features:
