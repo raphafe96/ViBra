@@ -7,15 +7,10 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
 </table>
 
 > **Citation**: If you use ViBra in your research, please refer to:  
-> **(https://doi.org/10.48550/arXiv.2607.22850)**  
+> **(https://doi.org/10.48550/arXiv.2607.22850)**
+> This version is outdated. The final paper is currently in press and should be available online soon.
 >  
 > **Theory and Manual**: [📖 Read (English)](manual.pdf) 
-
-## ⚠️ Important Warning: Selected VCI with List Mode
-
-When the Selected VCI is used with list mode (`MAXSCI N list`), a severe bug was found in the parsing of the user-provided state list. This does not affect the overall trend of the results presented, but rather the exact numerical values. We are waiting for further validation before replacing the arXiv paper, updating the Zenodo repository, updating the source folder and updating the pre compiled version. In the meantime, a working version (seems to be working properly now, but again, it is being tested) and further explanation can be found in the [`playground`](playground/)folder.
-
-Update: the Zenodo repository and the source code have been replaced with a working version/correct results.
 
 ## ✨ Main Features
 
