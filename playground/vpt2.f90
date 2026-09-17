@@ -6,6 +6,11 @@ use symmetry_module
 use read_input_file
 contains
 
+subroutine vpt2_module_date()
+implicit none
+write(*,'(A)') 'Module: VPT2                       Last update: 17/09/2026'
+end subroutine vpt2_module_date
+
 !TO DO: I used the same vci subroutines for the vpt2, with same variables etc etc etc... code has to be deeply cleaned. 
 !TO DO: I need also to create a modulo for thi compute H_element, so I can remove it from here and from the VCI module. 
 

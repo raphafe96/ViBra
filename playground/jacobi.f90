@@ -4,10 +4,15 @@ use read_input_file
   public dsyevd_A
   public dsyevr_A
 
-
   !TO DO: fix the bug when restarting the iterative diagonalization. I disabled it for now.
 
 contains
+
+subroutine jacobi_module_date()
+implicit none
+write(*,'(A)') 'Module: jacobi_diagonalization     Last update: 17/09/2026'
+end subroutine jacobi_module_date
+
 
   !===========================================================
   ! Diagonalize a symmetric matrix using LAPACK's DSYEVD

@@ -2,6 +2,11 @@ Module compute_integrals
 
 contains
 
+subroutine integrals_module_date()
+implicit none
+write(*,'(A)') 'Module: compute_integrals          Last update: 17/09/2026'
+end subroutine integrals_module_date
+
 subroutine sobrepos(i, j, coeff_i, coeff_j, integral, freq, power)
 implicit none
 

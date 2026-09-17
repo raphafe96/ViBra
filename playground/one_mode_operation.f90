@@ -5,6 +5,11 @@ use combination
 
 contains
 
+subroutine one_mode_module_date()
+implicit none
+write(*,'(A)') 'Module: one_mode_operation         Last update: 17/09/2026'
+end subroutine one_mode_module_date
+
 subroutine constant_one_mode(coefficients, Potential_3, Potential_4, N_modes, N_expansion, &
     HO_freq, new_coeff, store_integrals, total_energy, write_on_out, mode_excite, full_coef, &
     calc_intensity, dipole_derivatives, intensity, N_threads, &

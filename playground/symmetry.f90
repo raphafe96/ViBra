@@ -1,6 +1,7 @@
 module symmetry_module
   implicit none
 
+
   real*8, parameter :: pi_sym = 3.14159265358979323846d0
 
   !===========================================================================
@@ -49,6 +50,11 @@ module symmetry_module
   real*8, allocatable :: mode_char(:,:)
 
 contains
+
+subroutine symmetry_module_date()
+implicit none
+write(*,'(A)') 'Module: symmetry                   Last update: 17/09/2026'
+end subroutine symmetry_module_date
 
   !==========================================================================
   ! PUBLIC: init_symmetry

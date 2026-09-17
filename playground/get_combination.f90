@@ -2,6 +2,11 @@ module combination
 public
 contains
 
+subroutine combination_module_date()
+implicit none
+write(*,'(A)') 'Module: get_combination            Last update: 17/09/2026'
+end subroutine combination_module_date
+
     subroutine generate_combinations(N, M, vec, total_combinations, count_combo, numbering)
         implicit none
         integer, intent(in) :: N, M

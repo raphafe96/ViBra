@@ -5,6 +5,11 @@ use jacobi_diagonalization
 
 contains
 
+subroutine read_orca_module_date()
+implicit none
+write(*,'(A)') 'Module: read_orca                  Last update: 17/09/2026'
+end subroutine read_orca_module_date
+
 subroutine read_orca(file, linear, vibrations, cubic, quartic, N_modes, save_dip, save_second_dipole, exclude, number_excl)
   
   implicit none

@@ -3,6 +3,11 @@ module read_input_file
 
   contains
 
+subroutine read_input_module_date()
+implicit none
+write(*,'(A)') 'Module: read_input                 Last update: 17/09/2026'
+end subroutine read_input_module_date
+
   subroutine read_inp(input_file, N_modes, N_expansion, constants_file, &
                       constants_mode, N_quanta, N_states, conv_scf,     &
                       N_threads, point_group, proj_cutoff, max_iter_sci, &

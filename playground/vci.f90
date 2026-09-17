@@ -6,6 +6,11 @@ use symmetry_module
 use read_input_file
 contains
 
+subroutine vci_module_date()
+implicit none
+write(*,'(A)') 'Module: VCI                        Last update: 17/09/2026'
+end subroutine vci_module_date
+
 
 !TO DO: I was using the full spar_m and sparse_n even after filtering to calculate t5he dipole moments. Now they use their own spares pair list, so after filtering states for davidson it might be useful to deallocate(sparse_m, sparse_n, sparse_ndiff)
         !This will keep the duplicated arrays only before the davidson, which consumes most memory usually. 

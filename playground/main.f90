@@ -45,18 +45,6 @@ program main_vscf
   !For ethylene theres one combination band (011000000000) I got 8.9km/mol in VCI and ORCA VPT2 reports 10.33! 
 
 
-  !TO DO
-  ! ------ work on EXCLUD and SA-VCI to work together. RN it is disabled.
-  ! when using SA-VCI, the list of normal modes and the external file with the displacement, contain all normal modes (3N including translation and rotation)
-  ! the program skip the first 6, and read the rest, but in a full list in order. The list has to adapt
-  ! init_symmetry precisa receber a lista de modos excluídos (ou a lista list_new_modes) para filtrar mode_irrep na mesma ordem usada pelo resto do programa:
-
-
-  !Updates 02/09/2026
-  ! added a guard to avoid list + remove modes. If they are used together, the program will read the list up to the number of remaining modes and will sillently produce wrong results. The list must be reordered after mode exclusion.
-  ! added a conditional to not use symmetry adapted VCI when mode is equal to list. 
-
-
   !===========================================================================
   ! Scalar integers
   !===========================================================================
@@ -182,9 +170,11 @@ program main_vscf
   write(*,'(A)') ' Centro Brasileiro de Pesquisas Fisicas '
   write(*,'(A)') '       CBPF - Rio de Janeiro, Brasil'
   write(*,'(A)') '----------------------------------------'
+  
   write(*,*)
-
-  !===========================================================================
+  call print_module_dates()
+  
+    !===========================================================================
   ! Read input                                                        
   !===========================================================================
  
@@ -1176,10 +1166,34 @@ end if
   if(exclude_mode) write(101,'(1A, 1F18.4)') 'Harmonic contribution from excluded modes (1/2 times sum of excluded frequencies, cm-1): ', energy_excluded/2
   write(*,'(A)')
   write(*,'(A)') " <:> Normal termination."
-
+  
+  write(*,*)
+  call print_module_dates()
   
   close(101)
   close(200)
+
+
+contains
+
+subroutine print_module_dates()
+  implicit none
+  call main_module_date()
+  call jacobi_module_date()
+  call integrals_module_date()
+  call one_mode_module_date()
+  call read_input_module_date()
+  call read_orca_module_date()
+  call combination_module_date()
+  call vci_module_date()
+  call symmetry_module_date()
+  call vpt2_module_date()
+  end subroutine print_module_dates
+
+subroutine main_module_date()
+implicit none
+write(*,'(A)') 'Module: main                       Last update: 17/09/2026'
+end subroutine main_module_date
 
 end program main_vscf
 
