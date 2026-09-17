@@ -133,6 +133,10 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 
 ## Changelog
 
+**17/09/2026**
+
+* Each module now includes a small subroutine that prints its last-modified date to screen (has to be manually updated), called from `main_vscf.f90`. This makes it easier to track which version of each module is running, especially useful when working across multiple machines or builds.
+
 **11/09/2026**
 
 * `EXCLUD` now works with symmetry-adapted VCI.
