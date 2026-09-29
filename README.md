@@ -391,15 +391,13 @@ The precompiled executable is Windows-only. Compile the Fortran source code on t
 
 If you use ViBra in scientific work, please cite the associated publication and documentation.
 
+**Raphael F. Ligorio, Marco Antonio Barroca, Alan Duriez, Mathias B. Steiner; ViBra: Configuration Interaction for Anharmonic Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces. J. Chem. Theory Comput. 2026; https://doi.org/10.1021/acs.jctc.6c01564**
+
 ## 📄 License
 
-Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+ViBra is released under the MIT License. Copyright (c) 2026 Raphael F. Ligório and co-authors, Centro Brasileiro de Pesquisas Físicas (CBPF)
 
-Copyright (c) 2026 Raphael F. Ligório and co-authors, CBPF (Centro Brasileiro de Pesquisas Físicas)
-
-You are free to use, share, and modify ViBra for non-commercial purposes, provided you give appropriate credit. Commercial use is not permitted without explicit permission.
-
-Full license text: http://creativecommons.org/licenses/by-nc/4.0/
+Full license text: https://opensource.org/license/mit
 
 ## AI Usage
 
