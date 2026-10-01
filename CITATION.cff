@@ -1,31 +1,14 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite the article below."
-title: "ViBra"
-abstract: "Fortran program for anharmonic vibrational spectroscopy based on configuration interaction (VSCF/VCI)."
-type: software
+message: "If you use this software, please cite it as below."
 authors:
-  - family-names: "Ligorio"
-    given-names: "Raphael F."
-  - family-names: "Barroca"
-    given-names: "Marco Antonio"
-  - family-names: "Duriez"
-    given-names: "Alan"
-  - family-names: "Steiner"
-    given-names: "Mathias B."
-repository-code: "https://github.com/USUARIO/REPOSITORIO"
-license: MIT
-preferred-citation:
-  type: article
-  authors:
-    - family-names: "Ligorio"
-      given-names: "Raphael F."
-    - family-names: "Barroca"
-      given-names: "Marco Antonio"
-    - family-names: "Duriez"
-      given-names: "Alan"
-    - family-names: "Steiner"
-      given-names: "Mathias B."
-  title: "ViBra: Configuration Interaction for Anharmonic Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces"
-  journal: "Journal of Chemical Theory and Computation"
-  year: 2026
-  doi: "10.1021/acs.jctc.6c01564"
+- family-names: "YOUR_NAME_HERE"
+  given-names: "YOUR_NAME_HERE"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Lisa"
+  given-names: "Mona"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+title: "ViBra"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2026-10-01
+url: "https://github.com/raphafe96/ViBra"
