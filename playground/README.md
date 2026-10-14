@@ -133,6 +133,11 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 
 ## Changelog
 
+**14/10/2026**
+
+* Fixed a bug that made ViBra crash when compiled with gfortran and run with `MAXSCI 0 list`. The crash came from the new (see changelog from 09/09/2026) EN-PT2 selection step trying to store results for "zero configurations per state", which accessed memory outside the allocated arrays. It went unnoticed with ifx only because of how that compiler lays out memory.
+* Running `MAXSCI 0 list` is now also more efficient. Since no extra configurations are selected in this case, the final space is identical to the reference space, so the program skips the reference diagonalization and the EN-PT2 screening and diagonalizes the final space only once (dense or Davidson, depending on `RUNDAV`). Previously, the same space was diagonalized twice and EN-PT2 consumed unnecessary time.
+
 **17/09/2026**
 
 * Each module now includes a small subroutine that prints its last-modified date to screen (has to be manually updated), called from `main_vscf.f90`. This makes it easier to track which version of each module is running, especially useful when working across multiple machines or builds.
