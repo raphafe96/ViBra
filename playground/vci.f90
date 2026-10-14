@@ -8,7 +8,7 @@ contains
 
 subroutine vci_module_date()
 implicit none
-write(*,'(A)') 'Module: VCI                        Last update: 17/09/2026'
+write(*,'(A)') 'Module: VCI                        Last update: 14/10/2026'
 end subroutine vci_module_date
 
 
@@ -1383,6 +1383,10 @@ end if
 write(*,'(A,I8,A,I8)') ' Reference =', n_sel, ', external=', n_ext
 write(101,'(A,I8,A,I8)') ' Reference =', n_sel, ', external=', n_ext
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS WILL NOT COMPUTE ENPT2 CONTRIBUTION WHEN MAXSCI 0 list is used, and avoid allocating arrazs with dimension 0.
+if (N_sel_per_state > 0) then
+
 !----------------------------------------------------------------------
 ! 4b: Build sparse pair list for the CISD space
 !----------------------------------------------------------------------
@@ -1780,6 +1784,7 @@ if (check_list == 1) then
 
     nthreads = omp_get_max_threads()
 
+
     allocate(top_val_thread(N_sel_per_state, n_cisd_states, nthreads))
     allocate(top_idx_thread(N_sel_per_state, n_cisd_states, nthreads))
     top_val_thread = -huge(1.d0)
@@ -1957,6 +1962,17 @@ write(101,'(A,I8,A,I4,A)') '  --> ', n_new, &
 
 ! Free CISD arrays no longer needed
 deallocate(sel_list, ext_list, H_sel, eigenvalues, eigenvectors)
+
+
+
+else
+
+    n_new = 0
+    write(*,'(A)') ' N_sel_per_state = 0: skipping REF diagonalization and EN-PT2'
+    write(101,'(A)') ' N_sel_per_state = 0: skipping REF diagonalization and EN-PT2'
+    deallocate(sel_list, ext_list)     
+
+end if
 
 !==========================================================================
 ! STEP 6: Build and diagonalize the final expanded Hamiltonian
