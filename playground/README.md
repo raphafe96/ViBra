@@ -41,7 +41,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `R4TRIP` | Integer | Set to 1 to zero every quartic force constant Φ_ijkl with exactly 3 distinct mode indices (the Φ_iijk-type patterns), before VSCF/VCI/VPT2. Default: 0. |
 | `MIXSCF` |    Real | Mix of VSCF coefficients. C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. Default: 0.5. |
 | `MAXSCF` | Integer | Max number of VSCF steps. Default 100. |
-| `SAVECI` | Integer | Set to 1 to save the full list of eigenvectors of the VCI matrix, or 0 to disable it. Default 0. Only works with 'PGROUP C1' and 'MAXSCI 0 auto' or 'MAXSCI 0'|
+| `SAVECI` | Integer | Set to 1 to save the full list of eigenvectors of the VCI matrix, or 0 to disable it. Only works with 'PGROUP C1' and 'MAXSCI 0 auto' or 'MAXSCI 0'. Default 0.|
 
 ### Sum over States VPT2 (SoS VPT2)
 See: https://dx.doi.org/10.1021/acs.jpca.0c09526, J. Phys. Chem. A 2021, 125, 1301−1324'
