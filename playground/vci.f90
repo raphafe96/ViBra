@@ -8,7 +8,7 @@ contains
 
 subroutine vci_module_date()
 implicit none
-write(*,'(A)') 'Module: VCI                        Last update: 14/10/2026'
+write(*,'(A)') 'Module: VCI                        Last update: 16/10/2026'
 end subroutine vci_module_date
 
 
@@ -54,7 +54,7 @@ end subroutine vci_module_date
 !good news :D
 !Attention: orca uses a semi quartic force field, meaning all modes can differ up to 3, not 4! it is because it must have at least two indices the same in the quartic terms, which simplifies a LOT!
 
-
+!TO DO: add save_vci_coef for S-VCI and SA-VCI.
 !=============================================================================!
 ! Subroutine: compute_H_element                                               !
 !                                                                             !
@@ -437,6 +437,9 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   integer :: vm(N_modes), vn(N_modes)
   real*8, external :: ddot
 
+  !Save VCI coeff
+  integer :: save_vci_coef
+
   ! Timing
   integer(8) :: t_start, t_end, count_rate, count_max
   real(8) :: elapsed_time, start_time, end_time
@@ -467,6 +470,7 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   call read_intg('DAVSTA', Nfirst_davidson, 10)
   call read_intg('RUNDAV', use_davidson_int, 0)
   call read_intg('RUNENR', estimate_states, 0)
+  call read_intg('SAVECI', save_vci_coef, 0)
   
 
   if (use_davidson_int == 1) use_davidson = .true.
@@ -815,6 +819,24 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   write(*,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
   write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
 
+    if (save_vci_coef /= 0) then
+        open(unit=102, file='vci_eigenvectors.txt', status='replace')
+        write(*,*) 'Saving full list of eigenvectors. This may take a while.'
+        do i = 1, N_states_loc
+
+            write(102,'(A,I16,A,F18.8)') '#State ', i, '  E(cm-1) = ', eigenvalues(i)/cm_to_hartree
+            do j = 1, total_combinations
+                write(102,'(F14.8,2X,A)',advance='no') eigenvectors(j,i), '('
+                do l = 1, N_modes
+                if (l > 1) write(102,'(A)',advance='no') ','
+                write(102,'(I0)',advance='no') vec_combinations(j,l)
+                end do
+                write(102,'(A)') ')'
+            end do
+        end do
+
+        close(102)
+    end if
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! STEP 6: Transition dipoles – memory‑lean + energy filter
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
