@@ -135,7 +135,7 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 ## Changelog
 
 **30/10/2026**
-* Fixed a minor issue when parsing the keyword 'SAVECI'
+* Fixed a minor issue when parsing the keyword 'SAVECI'.
   
 **16/10/2026**
 * Added the new keyword 'SAVECI', which allows saving the full list of coefficients (eigenvectors) of the VCI matrix to file (vibrational_ci subroutine in the vib_ci module). It works only when the VCI kernel is not Selected-VCI and the basis is not symmetry adapted (point group C1).
