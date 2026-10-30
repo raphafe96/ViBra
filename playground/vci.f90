@@ -8,7 +8,7 @@ contains
 
 subroutine vci_module_date()
 implicit none
-write(*,'(A)') 'Module: VCI                        Last update: 16/10/2026'
+write(*,'(A)') 'Module: VCI                        Last update: 30/10/2026'
 end subroutine vci_module_date
 
 
@@ -820,7 +820,7 @@ subroutine vibrational_ci(Potential_3, Potential_4, N_modes, N_expansion, &
   write(101,'(1A)') '-------------------------------------------------------------------------------------------------------------------------------'
 
     if (save_vci_coef /= 0) then
-        open(unit=102, file='vci_eigenvectors.txt', status='replace')
+        open(unit=102, file='vci_eigenvectors.txt')
         write(*,*) 'Saving full list of eigenvectors. This may take a while.'
         do i = 1, N_states_loc
 
