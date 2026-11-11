@@ -42,6 +42,7 @@ To activate the playground features, simply place a file named `extra_input.txt`
 | `MIXSCF` |    Real | Mix of VSCF coefficients. C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. Default: 0.5. |
 | `MAXSCF` | Integer | Max number of VSCF steps. Default 100. |
 | `SAVECI` | Integer | Set to 1 to save the full list of eigenvectors of the VCI matrix, or 0 to disable it. Only works with 'PGROUP C1' and 'MAXSCI 0 auto' or 'MAXSCI 0'. Default 0.|
+| `CICCSD` | Integer |  Set to `1` to activate the alternative VCI truncation scheme (not applicable to Selected VCI or Symmetry-Adapted VCI). When enabled, the `NQUANT` keyword specifies the maximum number of quanta that can be excited in each mode, with excitations restricted to a maximum of two modes simultaneously. Default: `0`.|
 
 ### Sum over States VPT2 (SoS VPT2)
 See: https://dx.doi.org/10.1021/acs.jpca.0c09526, J. Phys. Chem. A 2021, 125, 1301−1324'
@@ -133,6 +134,16 @@ To drop all cubic and quartic terms with 3 or more distinct mode indices, keepin
 This is primarily useful as a diagnostic: comparing full-force-field results against a reduced-term run isolates how much of a given spectral feature comes from genuine higher-mode coupling versus the lower-order terms. It is not a substitute for a converged calculation with the full force field.
 
 ## Changelog
+**11/11/2026**
+* Added the `CICCSD` keyword to modify the truncation scheme used by the VCI subroutine. This option does not apply to Selected VCI or Symmetry-Adapted VCI. ('main.f90' and 'get_combination.f90' modified) 
+
+    * By default, the truncation scheme limits the total excitation level to `NQUANT`, distributed across all modes (i.e., the sum of excited quanta must be less than or equal to `NQUANT`).
+
+    * When the `CICCSD` keyword is activated, the truncation scheme is modified to allow excitations of up to `NQUANT` quanta in one or two modes simultaneously, rather than limiting the total number of excited quanta across all modes.
+
+    * For example, for a three-mode system such as water, with `NQUANT = 5`, the standard truncation scheme accepts configurations such as `(3,2,0)`, `(0,5,0)`, `(1,2,2)`, and `(5,0,0)`, provided that the sum of the excited quanta does not exceed 5.
+
+    * With `CICCSD` enabled, configurations such as `(5,5,0)`, `(3,0,5)`, and `(0,0,2)` are allowed. In this scheme, each mode can accommodate up to `NQUANT` quanta, but excitations are restricted to at most two modes simultaneously.
 
 **30/10/2026**
 * Fixed a minor issue when parsing the keyword 'SAVECI'.
