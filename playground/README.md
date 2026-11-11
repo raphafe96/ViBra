@@ -13,7 +13,8 @@ The playground currently introduces the following new and experimental features:
 - **Mode exclusion**: Possibility to exclude specific vibrational modes from the VSCF/VCI/VPT calculation entirely, either automatically (below a frequency cutoff) or by explicitly listing mode indices. 
 - **Sum over States VPT2 (SoS VPT2)**: A way to obtain anharmonic energies without a full VCI diagonalization, using the existing VCI Hamiltonian kernel. Described in detail below.
 - **Force-field term exclusion by index-distinctness**: Possibility to zero out specific cubic/quartic force constants before VSCF/VCI/VPT2, based on how many distinct mode indices they involve. Described in detail below.
-- **Improved VSCF convergence**: Controls the mixing of VSCF modal coefficients between successive SCF iterations.  In each cycle, the new coefficients `C_new` (obtained from diagonalising the effective one-mode Hamiltonian) are combined with the previous coefficients `C_old` as: C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new. 
+- **Improved VSCF convergence**: Controls the mixing of VSCF modal coefficients between successive SCF iterations.  In each cycle, the new coefficients `C_new` (obtained from diagonalising the effective one-mode Hamiltonian) are combined with the previous coefficients `C_old` as: C_mixed = (1 - MIXSCF) * C_old + MIXSCF * C_new.
+- **Alternative VCI truncation scheme**: A new truncation scheme for Full VCI calculations, activated through the `CICCSD` keyword. Instead of limiting the total excitation level across all modes to `NQUANT`, it allows up to `NQUANT` quanta in each mode, while restricting simultaneous excitations to a maximum of two modes. This provides a configuration space in a CCSD-like excitation structure. Not applicable to Selected VCI (S-VCI) or Symmetry-Adapted VCI (SA-VCI).
 
 
 ## 🧪 How to Use the New Features
