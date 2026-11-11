@@ -135,7 +135,7 @@ This is primarily useful as a diagnostic: comparing full-force-field results aga
 
 ## Changelog
 **11/11/2026**
-* Added the `CICCSD` keyword to modify the truncation scheme used by the VCI subroutine. This option does not apply to Selected VCI or Symmetry-Adapted VCI. ('main.f90' and 'get_combination.f90' modified) 
+* Added the `CICCSD` keyword to modify the truncation scheme used by the VCI subroutine. This option does not apply to Selected VCI or Symmetry-Adapted VCI. ('main.f90' and 'get_combination.f90' modified).
 
     * By default, the truncation scheme limits the total excitation level to `NQUANT`, distributed across all modes (i.e., the sum of excited quanta must be less than or equal to `NQUANT`).
 
