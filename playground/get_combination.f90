@@ -4,7 +4,7 @@ contains
 
 subroutine combination_module_date()
 implicit none
-write(*,'(A)') 'Module: get_combination            Last update: 17/09/2026'
+write(*,'(A)') 'Module: get_combination            Last update: 11/11/2026'
 end subroutine combination_module_date
 
     subroutine generate_combinations(N, M, vec, total_combinations, count_combo, numbering)
@@ -659,6 +659,100 @@ subroutine classify_quartic_terms(total_4, final_index_4, n_unique_4, &
     end function count_distinct4
 
     end subroutine zero_offdiagonal_mode_terms
+
+    !========================================================================== !
+    ! TRUNCAMENTO TIPO VCC: no maximo 2 modos excitados simultaneamente,        !
+    ! cada um com ate N_quanta quanta (NQUANT passa a ser limite POR MODO).    !
+    !                                                                          !
+    ! Estados gerados (N modos, Nq = NQUANT):                                  !
+    !   - estado fundamental                    (0 0 0 ... 0)                  !
+    !   - 1 modo excitado, 1..Nq quanta         (0 5 0 0 ...)                  !
+    !   - 2 modos excitados, 1..Nq quanta cada  (0 5 5 0 ...), (0 3 2 0 ...)    !
+    ! Total = 1 + N*Nq + N(N-1)/2 * Nq^2                                       !
+    !                                                                          !
+    ! Ordem: por numero total de quanta crescente (estado fundamental = 1),    !
+    ! e dentro de cada camada na mesma ordem  decrescente que     !
+    ! generate_combinations usa.                                               !
+    !========================================================================== !
+    subroutine count_combinations_vcc(N, Nq, total)
+        implicit none
+        integer, intent(in)  :: N, Nq
+        integer, intent(out) :: total
+        integer(8) :: t8
+ 
+        t8 = 1_8 + int(N,8)*int(Nq,8) &
+           + (int(N,8)*int(N-1,8)/2_8) * int(Nq,8)**2
+ 
+        if (t8 > int(huge(total),8)) then
+            write(*,'(A)') ' ERROR: number of VCC-like combinations exceeds integer range'
+            stop
+        end if
+        total = int(t8)
+ 
+    end subroutine count_combinations_vcc
+ 
+ 
+    subroutine generate_combinations_vcc(N, Nq, vec, total_combinations)
+        implicit none
+        integer, intent(in) :: N, Nq, total_combinations
+        integer, intent(inout) :: vec(total_combinations, N)
+ 
+        integer :: combination(N)
+        integer :: count_combo, tot, max_total
+ 
+        count_combo = 0
+        max_total   = min(2, N) * Nq
+
+        do tot = 0, max_total
+            combination = 0
+            call recursive_generate_vcc(1, tot, 0, Nq, combination, N, &
+                                        count_combo, vec, total_combinations)
+        end do
+ 
+        if (count_combo /= total_combinations) then
+            write(*,'(A,I12,A,I12)') ' ERROR: VCC-like combinations generated: ', &
+                count_combo, ' expected: ', total_combinations
+            stop
+        end if
+ 
+        write(101,*) count_combo, 'combinations (max. 2 excited modes, up to ', Nq, &
+                     ' quanta per mode)'
+ 
+    end subroutine generate_combinations_vcc
+ 
+ 
+    recursive subroutine recursive_generate_vcc(pos, remaining, nnz, qmax, combination, &
+                                                N, count_combo, vec, total_combinations)
+        implicit none
+        integer, intent(in)    :: pos, remaining, nnz, qmax, N, total_combinations
+        integer, intent(inout) :: combination(N), count_combo
+        integer, intent(inout) :: vec(total_combinations, N)
+        integer :: val, offset
+ 
+        offset = 0
+        if (remaining > qmax * (2 - nnz)) return
+ 
+        if (pos == N) then
+            if (remaining > qmax) return
+            combination(pos) = remaining
+            count_combo = count_combo + 1
+            if (count_combo > total_combinations) then
+                write(*,'(A)') ' ERROR: VCC-like combination counter overflow'
+                stop
+            end if
+            call print_combination(combination, N, count_combo, offset)
+            vec(count_combo, :) = combination(:)
+            return
+        end if
+ 
+        do val = min(remaining, qmax), 0, -1
+            if (val > 0 .and. nnz >= 2) cycle
+            combination(pos) = val
+            call recursive_generate_vcc(pos + 1, remaining - val, merge(nnz + 1, nnz, val > 0), &
+                                        qmax, combination, N, count_combo, vec, total_combinations)
+        end do
+ 
+    end subroutine recursive_generate_vcc
 
 end module combination
 

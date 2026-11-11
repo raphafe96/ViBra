@@ -151,6 +151,7 @@ program main_vscf
   !
   !
   integer :: run_vpt2
+  integer :: run_vci_vcc
 
   allocate(line)
   !===========================================================================
@@ -185,10 +186,11 @@ program main_vscf
   warning = 0
   calculate_fundamentals_vscf = 1
   N_states = -1 !If less roots is needed, the code must run with davidson.
+  run_vci_vcc = 0
+  run_vpt2 = 0
 
   call read_intg('RUNSCF', use_vci_at_vscf, 1)
   call read_intg('RUNH2O', test, 0)
-  call read_intg('RUNPT2', run_vpt2, 0)
   call read_real('MIXSCF', mix_term_vscf, 0.5d0)
   call read_intg('MAXSCF', max_scf_steps, 100)
 
@@ -210,14 +212,12 @@ program main_vscf
   excl4_threediff_int = 0
 
   if (test == 0) then
+    call read_intg('RUNPT2', run_vpt2, 0)
+    call read_intg('CICCSD', run_vci_vcc, 0)
     call read_intg('R3DIFF', excl3_alldiff_int,   0)
     call read_intg('R4DIFF', excl4_alldiff_int,   0)
     call read_intg('R4TRIP', excl4_threediff_int, 0)
   end if
-
- ! if (test == 1) use_vci_at_vscf = 1
- 
-
 
   if (test == 0) then
     call read_inp(input_file, N_modes, N_expansion, constants_file,   &
@@ -229,8 +229,30 @@ program main_vscf
    call read_intg('RUNDAV', use_davidson_int, 0)
    if (use_davidson_int == 1) use_davidson = .true.
    if (use_davidson) N_states = -1        
-                                  
+  
+   if (run_vci_vcc /= 0) then
+    
+    if(point_group_input /= 'C1' .and. point_group_input /= 'c1') run_vci_vcc = 0
+    if(sci_mode == 'list') run_vci_vcc = 0
+
+    if(sci_mode == 'auto' .and. (quanta_max_reference_sci==1) .and. max_iter_sci /= 0) run_vci_vcc = 0
+    if(sci_mode == 'auto' .and. (quanta_max_reference_sci==2) .and. max_iter_sci /= 0) run_vci_vcc = 0
+    if(sci_mode == 'auto' .and. (quanta_max_reference_sci==3) .and. max_iter_sci /= 0) run_vci_vcc = 0
+    if(sci_mode == 'auto' .and. (quanta_max_reference_sci==4) .and. max_iter_sci /= 0) run_vci_vcc = 0
+    if(run_vpt2 /= 0) run_vci_vcc = 0
+
+  end if
+
+  if (run_vci_vcc /= 0) then
+    if(N_expansion - 1 .lt. N_quanta) then
+      write(*,*) '>> ERROR: Increase NEXPAN value'
+      stop
+    end if
+  end if
+
   else
+    run_vci_vcc = 0
+    run_vpt2 = 0
     N_modes         = 3
     N_expansion     = 10
     N_quanta        = 5
@@ -914,12 +936,24 @@ end if
     !if (max_iter_sci == 0 .and. sci_mode == 'auto') sci_mode = 'auto'
 
     if (sci_mode .eq. 'auto') then
+
+    if (run_vci_vcc == 1) then
+        call count_combinations_vcc(N_modes, N_quanta, total_combinations)
+        N_states = total_combinations
+        allocate(combination_vec(total_combinations, N_modes))
+        combination_vec = 0
+        write(101,'(A)') ' >>> VCC-like truncation: max. 2 excited modes, NQUANT = max. quanta per mode'
+        write(*,'(A)')   ' >>> VCC-like truncation: max. 2 excited modes, NQUANT = max. quanta per mode'
+        call generate_combinations_vcc(N_modes, N_quanta, combination_vec, total_combinations)
+  
+    else
+
       if (N_quanta >= N_expansion) N_quanta = N_expansion - 1
 
       do i = 0, N_quanta
         call count_combinations(N_modes, i, j)
         total_combinations = total_combinations + j
-      end do
+      end do 
 
       !if (N_states > total_combinations .or. N_states < 1) &
       N_states = total_combinations
@@ -940,7 +974,8 @@ end if
       write(*,*)
       write(*,'(A,I8)')   ' States generated: ', total_combinations
 
-    end if
+    end if !if VCC-VCI
+  end if !IF LIst auto
 
     if (sci_mode .eq. 'list') then
       if (N_quanta >= N_expansion) N_quanta = N_expansion - 1
@@ -973,8 +1008,9 @@ end if
 
       read(199, *) max_states
       total_combinations = max_states
-      
+    
       allocate(combination_vec(max_states, N_modes))
+
       write(101,'(A,I12)') ' States read: ', max_states
       write(*,'(A,I12)') ' States read: ', max_states
       
@@ -1192,7 +1228,7 @@ subroutine print_module_dates()
 
 subroutine main_module_date()
 implicit none
-write(*,'(A)') 'Module: main                       Last update: 17/09/2026'
+write(*,'(A)') 'Module: main                       Last update: 11/11/2026'
 end subroutine main_module_date
 
 end program main_vscf
