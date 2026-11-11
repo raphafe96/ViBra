@@ -44,6 +44,10 @@ program main_vscf
   !I tested for ethylene and water and it is pretty much the same value as reported in: J Chem Phys. 2007 May 28;126(20):204101. doi: 10.1063/1.2734970.
   !For ethylene theres one combination band (011000000000) I got 8.9km/mol in VCI and ORCA VPT2 reports 10.33! 
 
+  !About the truncation CICCSD - A pre analyses before implementing. Need to test to check if these are the only and correct changes.
+  !to activate CICCSD when PGROUP is not C1 (change the code to run the CICCSD truncation scheme in SA mode, just remove the conditional that sets it to 0 if PGROUP is not 1)
+  !To activate for selected CI, the conditional that runs the VCC recursive generation must be applied when list is called (need to adapt ve_combination and vec_combination2) 
+  !           and also remove the conditional if auto is called with MAXSCI different than 0.
 
   !===========================================================================
   ! Scalar integers
