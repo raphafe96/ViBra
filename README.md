@@ -7,7 +7,7 @@ Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces.</strong><br><
 </table>
 
 > **Citation**: If you use ViBra in your research, please refer to:  
-> **Raphael F. Ligorio, Marco Antonio Barroca, Alan Duriez, Mathias B. Steiner; ViBra: Configuration Interaction for Anharmonic Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces. J. Chem. Theory Comput. 2026; https://doi.org/10.1021/acs.jctc.6c01564**
+> **Raphael F. Ligorio, Marco Antonio Barroca, Alan Duriez, Mathias B. Steiner; ViBra: Configuration Interaction for Anharmonic Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces. J. Chem. Theory Comput. (2026) 22(21): 11498–11518; https://doi.org/10.1021/acs.jctc.6c01564**
 >  
 > **Theory and Manual**: [📖 Read (English)](manual.pdf) 
 
