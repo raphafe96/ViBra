@@ -28,4 +28,8 @@ preferred-citation:
   title: "ViBra: Configuration Interaction for Anharmonic Vibrational Spectroscopy and Quantum-Sampled Configuration Spaces"
   journal: "Journal of Chemical Theory and Computation"
   year: 2026
+  volume: 22
+  issue: 21
+  start: 11498
+  end: 11518
   doi: "10.1021/acs.jctc.6c01564"
